@@ -1,4 +1,4 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════════════
      UNITYCODE · МАТЕРИАЛЫ (хаб)  —  ПАМЯТКА ФОРКЕРУ
      Раздел-контейнер со звёздным фоном (независим от index.html).
@@ -191,6 +191,7 @@ let openId=null;  // какой материал сейчас раскрыт
 function closeReader(){
   reader.classList.remove('show');
   markCurrent(null);
+  if(document.activeElement && document.activeElement.blur) document.activeElement.blur();
   openId=null;
   try{ localStorage.removeItem(LAST_KEY); }catch(e){}
 }
