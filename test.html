@@ -2,19 +2,23 @@
 <html lang="ru"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Test</title>
+<title>Test 2</title>
 <style>
-  body { margin:0; background:#0a0a0a; color:#ddd; font-family:monospace; min-height:100vh; }
+  html,body { height:100%; margin:0; }
+  body { background:#0a0a0a; color:#ddd; font-family:monospace; min-height:100vh; overflow:hidden; }
+  #sky { position:fixed; inset:0; z-index:0; pointer-events:none; touch-action:none; }
   .menu { position:fixed; top:5rem; right:1rem; display:flex; flex-direction:column; gap:0.5rem; z-index:10; }
   .menu button, .menu a {
     background:rgba(0,0,0,0.7); color:#888; border:1px solid #333;
     padding:0.6rem 1rem; font-family:monospace; font-size:0.8rem;
     cursor:pointer; text-decoration:none; display:inline-block;
   }
-  #text { display:none; max-width:600px; margin:2rem; padding:1rem; background:rgba(20,30,50,0.5); }
+  #text { display:none; max-width:600px; margin:2rem; padding:1rem; background:rgba(20,30,50,0.5); position:relative; z-index:2; }
   #text.show { display:block; }
 </style>
 </head><body>
+
+<canvas id="sky"></canvas>
 
 <div class="menu">
   <a href="#">КНИГА</a>
@@ -23,9 +27,8 @@
 </div>
 
 <div id="text">
-  <h2>Тестовый текст</h2>
-  <p>Это просто текст. Если меню справа остаётся видимым при нажатии кнопки «Как форкнуть» — значит проблема не в браузере, а в чём-то конкретном из основной страницы (небо, подложка, скрипт).</p>
-  <p>Если меню всё равно пропадает — проблема глубже, в самом сочетании fixed-меню и появляющегося блока в этом браузере.</p>
+  <h2>Тест 2: со звёздным небом</h2>
+  <p>Если меню пропадает при нажатии — виноват canvas или его сочетание с overflow:hidden на body.</p>
 </div>
 
 <script>
@@ -34,5 +37,23 @@
     open = !open;
     document.getElementById('text').classList.toggle('show', open);
   };
+
+  // звёзды
+  const cv=document.getElementById('sky'), ctx=cv.getContext('2d');
+  let W,H,stars;
+  function init(){
+    W=cv.width=innerWidth; H=cv.height=innerHeight;
+    stars=Array.from({length:200},()=>({x:Math.random()*W,y:Math.random()*H,a:0.3+Math.random()*0.5,ph:Math.random()*7}));
+  }
+  function loop(t){
+    ctx.fillStyle='#050a14'; ctx.fillRect(0,0,W,H);
+    for(const s of stars){
+      const tw=0.4+0.6*Math.sin(t/1000+s.ph);
+      ctx.fillStyle='rgba(220,235,255,'+(s.a*tw).toFixed(3)+')';
+      ctx.fillRect(s.x,s.y,1,1);
+    }
+    requestAnimationFrame(loop);
+  }
+  addEventListener('resize',init); init(); requestAnimationFrame(loop);
 </script>
 </body></html>
