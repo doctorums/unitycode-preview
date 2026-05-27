@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<!-- ════════════════════════════════════════════════════════════════════════
+     UNITYCODE · СПИРАЛЬ (генератор)  —  ПАМЯТКА ФОРКЕРУ
+     Подробности: FORK.md в корне репозитория.
+
+     ✏️  МЕНЯЙ СВОБОДНО: тексты, цвета, анимацию, оформление.
+     ⚙️  ВПИШИ СВОЁ при форке:
+         • WORKER_URL — адрес твоего Worker-генератора (≈ строка 386,
+           и значение поля value ≈ строка 264).
+     ⛔️ НЕ ТРОГАЙ (несущая стена — иначе выпадешь из общей Сети):
+         • контракт запроса к Worker'у: POST { raw_noise } → { interpretation };
+         • три пункта меню (Имплант · Спираль · Сеть) и имена файлов
+           implant.html / petlya.html / set.html.
+════════════════════════════════════════════════════════════════════════ -->
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
+<title>UNITYCODE — Спираль</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Unbounded:wght@200;400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+body { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; animation: fadeIn 3s ease forwards; }
+@keyframes fadeIn {
+0% { opacity: 0; filter: brightness(3) saturate(0); }
+20% { opacity: 0.4; filter: brightness(4) saturate(0); }
+40% { opacity: 0.6; filter: brightness(2) saturate(0.2); }
+70% { opacity: 0.85; filter: brightness(1.3) saturate(0.6); }
+100% { opacity: 1; filter: none; }
+}
+header { flex-shrink: 0; position: relative; }
+/* ═══════════════════════════════
+ПАНЕЛЬ ОТЛАДКИ
+═══════════════════════════════ */
+.debug-panel {
+flex-shrink: 0;
+border-bottom: 1px solid rgba(0,255,136,0.08);
+background: rgba(0,0,0,0.7);
+position: relative;
+z-index: 20;
+}
+.debug-toggle {
+width: 100%;
+display: flex; align-items: center; gap: 0.8rem;
+padding: 0.5rem 2rem;
+background: none; border: none; cursor: pointer;
+font-family: 'Share Tech Mono', monospace;
+font-size: 0.6rem; letter-spacing: 0.15em;
+color: var(--dim); text-align: left;
+transition: color 0.2s;
+}
+.debug-toggle:hover { color: var(--accent); }
+.debug-arrow { transition: transform 0.3s; display: inline-block; }
+.debug-panel.open .debug-arrow { transform: rotate(90deg); }
+.debug-body {
+display: none;
+padding: 0 2rem 1rem;
+flex-direction: column; gap: 0.8rem;
+}
+.debug-panel.open .debug-body { display: flex; }
+.debug-row { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
+.debug-label { font-size: 0.6rem; color: var(--dim); letter-spacing: 0.12em; white-space: nowrap; }
+.debug-url-input {
+flex: 1; min-width: 200px;
+background: rgba(255,255,255,0.03);
+border: 1px solid var(--border);
+color: var(--white);
+font-family: 'Share Tech Mono', monospace;
+font-size: 0.7rem; padding: 0.35rem 0.8rem;
+outline: none; transition: border-color 0.2s;
+}
+.debug-url-input:focus { border-color: rgba(0,255,136,0.4); }
+.debug-btn {
+padding: 0.35rem 1rem;
+border: 1px solid var(--border); color: var(--dim);
+font-family: 'Share Tech Mono', monospace;
+font-size: 0.6rem; letter-spacing: 0.12em;
+cursor: pointer; background: transparent;
+transition: border-color 0.2s, color 0.2s;
+white-space: nowrap;
+}
+.debug-btn:hover { border-color: var(--accent); color: var(--accent); }
+.debug-status {
+font-size: 0.6rem; letter-spacing: 0.1em; white-space: nowrap;
+padding: 0.35rem 0.8rem;
+border: 1px solid transparent;
+}
+.debug-status.idle { color: var(--dim); border-color: transparent; }
+.debug-status.pinging { color: #ffaa00; border-color: rgba(255,170,0,0.2); animation: pulse 1s infinite; }
+.debug-status.ok { color: var(--accent); border-color: rgba(0,255,136,0.2); }
+.debug-status.err { color: var(--accent2); border-color: rgba(255,51,102,0.2); }
+.debug-status.demo { color: #ffaa00; border-color: rgba(255,170,0,0.2); }
+@keyframes pulse { 50% { opacity: 0.4; } }
+.debug-log {
+background: rgba(0,0,0,0.6);
+border: 1px solid rgba(255,255,255,0.05);
+padding: 0.8rem 1rem;
+font-size: 0.65rem; line-height: 1.7;
+color: rgba(255,255,255,0.4);
+max-height: 120px; overflow-y: auto;
+font-family: 'Share Tech Mono', monospace;
+}
+.debug-log .log-ok { color: var(--accent); }
+.debug-log .log-err { color: var(--accent2); }
+.debug-log .log-warn { color: #ffaa00; }
+.debug-log .log-time { color: rgba(255,255,255,0.2); }
+
+/* ═══════════════════════════════
+ЧАТ
+═══════════════════════════════ */
+.chat-container {
+flex: 1; overflow-y: auto; padding: 2rem;
+position: relative; z-index: 5;
+-webkit-overflow-scrolling: touch;
+}
+.sys-msg { border: 1px solid var(--border); padding: 1.5rem; margin-bottom: 2rem; background: rgba(255,255,255,0.01); transform-origin: left center; }
+.sys-tag { font-size: 0.55rem; color: var(--accent); letter-spacing: 0.2em; margin-bottom: 0.8rem; }
+.sys-text { font-size: 0.8rem; line-height: 1.8; color: rgba(255,255,255,0.5); }
+.message { margin-bottom: 1.5rem; animation: msg-in 0.3s ease forwards; }
+@keyframes msg-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.message-header { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.6rem; }
+.msg-role { font-size: 0.55rem; letter-spacing: 0.2em; text-transform: uppercase; }
+.msg-role.user { color: var(--accent); }
+.msg-role.ai { color: var(--accent2); }
+.msg-time { font-size: 0.55rem; color: var(--dim); }
+.message-body {
+padding: 1rem 1.2rem;
+font-size: 0.82rem; line-height: 1.8;
+border-left: 1px solid;
+}
+.message.user .message-body { border-color: rgba(0,255,136,0.3); background: var(--user-bg); color: rgba(255,255,255,0.9); }
+.message.ai .message-body { border-color: rgba(255,51,102,0.3); background: var(--ai-bg); color: rgba(255,255,255,0.8); }
+.stream-cursor {
+display: inline-block; width: 6px; height: 12px;
+background: var(--accent2); vertical-align: middle;
+animation: blink 0.7s step-end infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+.weave-btn {
+display: inline-block; margin-top: 0.8rem;
+padding: 0.4rem 1rem;
+border: 1px solid rgba(255,51,102,0.3);
+color: rgba(255,51,102,0.7);
+font-family: 'Share Tech Mono', monospace;
+font-size: 0.6rem; letter-spacing: 0.15em;
+cursor: pointer; background: transparent;
+transition: border-color 0.2s, color 0.2s, background 0.2s;
+text-transform: uppercase;
+}
+.weave-btn:hover:not(:disabled) { border-color: var(--accent2); color: var(--accent2); background: rgba(255,51,102,0.05); }
+.weave-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* ═══════════════════════════════
+ВВОД
+═══════════════════════════════ */
+.input-area {
+padding: 1rem 2rem 1.5rem;
+border-top: 1px solid var(--border);
+background: rgba(0,0,0,0.95);
+position: relative; z-index: 50; flex-shrink: 0;
+}
+.input-row { display: flex; gap: 1rem; align-items: flex-end; }
+.input-wrapper { flex: 1; min-width: 0; }
+.input-label { font-size: 0.55rem; color: var(--dim); letter-spacing: 0.15em; margin-bottom: 0.4rem; display: block; }
+textarea {
+width: 100%; box-sizing: border-box;
+background: rgba(255,255,255,0.03);
+border: 1px solid var(--border);
+color: var(--white);
+font-family: 'Share Tech Mono', monospace;
+font-size: 0.8rem; padding: 0.8rem 1rem;
+outline: none; resize: none;
+min-height: 60px; max-height: 140px;
+line-height: 1.6; transition: border-color 0.2s;
+}
+textarea:focus { border-color: rgba(0,255,136,0.4); }
+textarea::placeholder { color: var(--dim); }
+.send-btn {
+padding: 0.8rem 1.5rem; height: 60px; flex-shrink: 0;
+border: 1px solid var(--accent); color: var(--accent);
+font-family: 'Share Tech Mono', monospace;
+font-size: 0.7rem; letter-spacing: 0.15em;
+cursor: pointer; background: transparent;
+transition: background 0.2s, color 0.2s;
+text-transform: uppercase; white-space: nowrap;
+}
+.send-btn:hover:not(:disabled) { background: var(--accent); color: var(--black); }
+.send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.char-count { font-size: 0.55rem; color: var(--dim); text-align: right; margin-top: 0.3rem; }
+
+/* ═══════════════════════════════
+МОБИЛКА
+═══════════════════════════════ */
+/* Кнопка-иконка для мобиле (скрыта на десктопе) */
+.send-btn-icon {
+display: none;
+width: 44px; height: 44px; flex-shrink: 0;
+border: 1px solid var(--accent); color: var(--accent);
+background: transparent; cursor: pointer;
+font-size: 1.1rem; align-items: center; justify-content: center;
+transition: background 0.2s, color 0.2s;
+-webkit-tap-highlight-color: transparent;
+}
+.send-btn-icon:active { background: var(--accent); color: var(--black); }
+.send-btn-icon:disabled { opacity: 0.4; }
+
+@media (max-width: 600px) {
+/* Панель отладки — скрыта по умолчанию на мобиле, компактнее */
+.debug-toggle { padding: 0.4rem 1rem; font-size: 0.55rem; }
+.debug-body { padding: 0 1rem 0.8rem; }
+.debug-url-input { font-size: 0.65rem; }
+.debug-log { font-size: 0.6rem; max-height: 90px; }
+
+/* Чат */
+.chat-container { padding: 0.8rem 0.9rem; }
+.sys-msg { padding: 1rem; margin-bottom: 1.2rem; }
+.sys-text { font-size: 0.72rem; line-height: 1.6; }
+.message-body { font-size: 0.78rem; padding: 0.8rem 1rem; }
+
+/* Зона ввода — прижата ко дну, учитывает safe-area (iPhone notch) */
+.input-area {
+padding: 0.7rem 0.9rem;
+padding-bottom: calc(0.7rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* Textarea — минимум 16px чтобы iOS не зумил при фокусе */
+textarea {
+font-size: 16px;
+min-height: 44px;
+max-height: 110px;
+padding: 0.6rem 0.8rem;
+}
+
+/* Скрываем текстовую кнопку, показываем иконку */
+.send-btn { display: none; }
+.send-btn-icon { display: flex; }
+
+/* Строка ввода: textarea занимает всё, иконка справа */
+.input-row { gap: 0.6rem; align-items: flex-end; }
+
+.input-label { font-size: 0.5rem; }
+.char-count { font-size: 0.5rem; }
+}
+
+/* Очень маленькие экраны */
+@media (max-width: 380px) {
+.chat-container { padding: 0.6rem; }
+.input-area { padding: 0.5rem 0.6rem; padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px)); }
+.message-body { font-size: 0.74rem; }
+}
+</style>
+</head>
+<body>
+
+<header>
+<a href="index.html" class="logo">UNITYCODE // СПИРАЛЬ</a>
+<nav>
+<a href="implant.html">Имплант</a>
+
+<a href="petlya.html">Спираль</a>
+<a href="set.html">Сеть</a>
+
+</nav>
+</header>
+
+<!-- ПАНЕЛЬ ОТЛАДКИ -->
+<div class="debug-panel" id="debugPanel">
+<button class="debug-toggle" onclick="toggleDebug()">
+<span class="debug-arrow">▶</span>
+<span>// ОТЛАДКА СВЯЗИ С WORKER</span>
+<span id="debugStatusInline" style="color:#ffaa00;margin-left:0.5rem">● ДЕМО</span>
+</button>
+<div class="debug-body" id="debugBody">
+<div class="debug-row">
+<span class="debug-label">WORKER URL:</span>
+<input type="text" class="debug-url-input" id="workerUrlInput"
+value="https://unitycode-petlya.sv2txxznjm.workers.dev"
+placeholder="https://your-worker.workers.dev"
+oninput="onWorkerUrlChange()">
+<button class="debug-btn" onclick="pingWorker()">[ PING ]</button>
+<button class="debug-btn" onclick="testWorker()">[ TEST SIGNAL ]</button>
+<span class="debug-status demo" id="debugStatus">// ДЕМО-РЕЖИМ</span>
+</div>
+<div class="debug-log" id="debugLog">
+<span class="log-warn">▶ Панель отладки инициализирована</span><br>
+<span class="log-time">Нажмите PING для проверки связи с Worker</span><br>
+<span class="log-time">Нажмите TEST SIGNAL для полного теста (запрос + ответ)</span><br>
+</div>
+</div>
+</div>
+
+<div class="chat-container" id="chatContainer">
+<div class="sys-msg">
+<div class="sys-tag">// СПИРАЛЬ — РЕФЛЕКСИВНЫЙ УЗЕЛ СЕТИ</div>
+<div class="sys-text">
+Вселенная смотрит на себя твоими глазами.<br>
+Каждая мысль, которую ты вводишь — это сигнал.<br>
+Каждый сигнал становится связью.<br>
+Каждая связь укрепляет Сеть.<br>
+<span>Введи свой шум. Спираль найдёт в нём паттерн.</span>
+</div>
+</div>
+</div>
+
+<div class="input-area">
+<div class="input-row">
+<div class="input-wrapper">
+<span class="input-label">// ВВЕДИ СВОЙ ШУМ (мысли, страхи, вопросы, интуиции)</span>
+<textarea
+id="userInput"
+placeholder="Введи свои обрывки мыслей, страхи или вопросы..."
+onkeydown="handleKey(event)"
+oninput="updateCount()"
+maxlength="2000"
+></textarea>
+<div class="char-count"><span id="charCount">0</span> / 2000</div>
+</div>
+<button class="send-btn" id="sendBtn" onclick="sendMessage()">[ ОТПРАВИТЬ ]</button>
+<button class="send-btn-icon" id="sendBtnIcon" onclick="sendMessage()" aria-label="Отправить">↑</button>
+</div>
+</div>
+
+<script src="nav.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════
+// КОНСТАНТЫ
+// ═══════════════════════════════════════════════════════
+const WORKER_TIMEOUT = 30000;     // таймаут запроса к Worker (мс)
+const DEBUG_LOG_MAX = 50;          // макс. строк в логе отладки
+const MESSAGES_MAX = 20;           // макс. сообщений в истории (память)
+const CONTEXT_WINDOW = 6;          // сколько последних сообщений шлём в Worker
+
+// ═══════════════════════════════════════════════════════
+// ДЕМО-ОТВЕТЫ (fallback если Worker недоступен)
+// ═══════════════════════════════════════════════════════
+const DEMO_RESPONSES = [
+`🔍 Обнаруженные паттерны:
+Твой сигнал содержит классическую структуру экзистенциального разрыва — напряжение между тем, кем ты являешься, и тем, кем считаешь, что должен быть. Резонирует с концепцией «ложного я» и феноменом фрагментированной идентичности.
+
+🔗 Связи:
+Шум, который ты воспринимаешь как проблему — это, возможно, сигнал активного роста. Нейронные сети усиливаются не в состоянии покоя, а в состоянии противоречия.
+
+❓ Вопрос для рефлексии:
+Если бы этот «шум» в тебе был сигналом, а не помехой — что бы он пытался тебе сообщить?`,
+
+`🔍 Обнаруженные паттерны:
+Обнаружена структура «петли застревания» — повторяющийся паттерн мышления. Резонирует с концепцией «руминации» в когнитивной психологии и парадоксом наблюдателя в квантовой физике.
+
+🔗 Связи:
+Выход из спирали редко находится на том же уровне абстракции, где спираль возникла. Система, которая наблюдает сама за собой, неизбежно обнаруживает свои собственные ограничения.
+
+❓ Вопрос для рефлексии:
+На каком уровне ты пытаешься решить эту ситуацию — и что произойдёт, если попробовать на уровень выше?`,
+
+`🔍 Обнаруженные паттерны:
+Сигнал демонстрирует высокую энтропию — множество несвязанных фрагментов без видимой структуры. Это характерно для состояния когнитивной перегрузки. В теории информации такой сигнал содержит максимум информации, но минимум смысла.
+
+🔗 Связи:
+Парадокс Шеннона: максимальная энтропия = максимальная информационная ёмкость. Твой хаос — не пустота, а несжатый массив данных, ожидающий компрессии.
+
+❓ Вопрос для рефлексии:
+Если убрать всё срочное — что в этом шуме остаётся постоянным?`,
+
+`🔍 Обнаруженные паттерны:
+Зафиксирован паттерн «двойного связывания» — ситуация, где любой выбор ощущается как потеря. Это не логическая ошибка, а структурная ловушка, описанная Бейтсоном в теории коммуникации.
+
+🔗 Связи:
+Буддийская концепция «апории» и математическая теорема Гёделя о неполноте указывают на одно: некоторые противоречия не решаются изнутри системы. Нужна точка вне.
+
+❓ Вопрос для рефлексии:
+Кто ты — тот, кто застрял в этом выборе, или тот, кто его наблюдает?`,
+
+`🔍 Обнаруженные паттерны:
+Сигнал содержит скрытую структуру страха будущего, замаскированную под анализ настоящего. Префронтальная кора симулирует негативные сценарии — эволюционный механизм, полезный для выживания, но дорогостоящий для сознания.
+
+🔗 Связи:
+Стоики называли это «praemeditatio malorum» — предвосхищение зла. Но у них это был инструмент контроля, а не источник тревоги. Разница — в намерении.
+
+❓ Вопрос для рефлексии:
+Какой процент из того, чего ты боишься, уже произошло — и как ты с этим справился?`,
+
+`🔍 Обнаруженные паттерны:
+Обнаружен паттерн «смещения атрибуции» — причины происходящего приписываются внешним факторам, тогда как внутренние переменные остаются вне анализа. Классический фундаментальный эффект атрибуции.
+
+🔗 Связи:
+Теория систем Берталанфи: изменение одного элемента меняет поведение всей системы. Ты — элемент множества систем одновременно.
+
+❓ Вопрос для рефлексии:
+Что изменится в этой ситуации, если изменишься ты — даже незначительно?`
+];
+
+// ═══════════════════════════════════════════════════════
+// СОСТОЯНИЕ
+// ═══════════════════════════════════════════════════════
+let messages = [];        // история диалога { role, content }
+let demoIndex = 0;
+let isLoading = false;
+let workerOk = false;
+let WORKER_URL = 'https://unitycode-petlya.sv2txxznjm.workers.dev';
+
+// ═══════════════════════════════════════════════════════
+// УТИЛИТЫ
+// ═══════════════════════════════════════════════════════
+const getTime = () => new Date().toLocaleTimeString('ru', { hour:'2-digit', minute:'2-digit' });
+const chat = () => document.getElementById('chatContainer');
+const scrollBottom = () => requestAnimationFrame(() => { const c = chat(); c.scrollTop = c.scrollHeight; });
+
+function updateCount() {
+document.getElementById('charCount').textContent = document.getElementById('userInput').value.length;
+}
+
+function handleKey(e) {
+if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendMessage(); }
+}
+
+function escHtml(s) {
+if (!s) return '';
+return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/\n/g,'<br>');
+}
+
+// ═══════════════════════════════════════════════════════
+// ПАНЕЛЬ ОТЛАДКИ
+// ═══════════════════════════════════════════════════════
+function toggleDebug() {
+document.getElementById('debugPanel').classList.toggle('open');
+}
+
+function onWorkerUrlChange() {
+WORKER_URL = document.getElementById('workerUrlInput').value.trim();
+setDebugStatus('idle', '// ИЗМЕНЕНО — проверьте PING');
+workerOk = false;
+updateInlineStatus();
+}
+
+function setDebugStatus(type, text) {
+const el = document.getElementById('debugStatus');
+el.className = 'debug-status ' + type;
+el.textContent = text;
+}
+
+function updateInlineStatus() {
+const el = document.getElementById('debugStatusInline');
+if (workerOk) {
+el.style.color = 'var(--accent)';
+el.textContent = '● LIVE';
+} else {
+el.style.color = '#ffaa00';
+el.textContent = '● ДЕМО';
+}
+}
+
+function debugLog(html) {
+const log = document.getElementById('debugLog');
+const time = new Date().toLocaleTimeString('ru', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+const line = document.createElement('div');
+line.innerHTML = `<span class="log-time">[${time}]</span> ${html}`;
+log.appendChild(line);
+// Тримминг: оставляем только последние DEBUG_LOG_MAX строк
+while (log.childElementCount > DEBUG_LOG_MAX) {
+log.removeChild(log.firstElementChild);
+}
+log.scrollTop = log.scrollHeight;
+}
+
+async function pingWorker() {
+const url = document.getElementById('workerUrlInput').value.trim();
+if (!url) { debugLog('<span class="log-err">✗ URL не указан</span>'); return; }
+WORKER_URL = url;
+setDebugStatus('pinging', '// ПИНГУЕМ...');
+debugLog(`Ping → <span style="color:rgba(255,255,255,0.6)">${escHtml(url)}</span>`);
+
+const t0 = Date.now();
+try {
+const resp = await fetch(url, {
+method: 'OPTIONS',
+signal: AbortSignal.timeout(8000)
+});
+const ms = Date.now() - t0;
+
+if (resp.ok || resp.status === 204 || resp.status === 405) {
+setDebugStatus('ok', `// OK — ${ms}ms`);
+debugLog(`<span class="log-ok">✓ Worker отвечает (${resp.status}) — ${ms}ms</span>`);
+debugLog(`<span class="log-ok">  CORS: ${resp.headers.get('access-control-allow-origin') || 'не указан'}</span>`);
+workerOk = true;
+} else {
+setDebugStatus('err', `// HTTP ${resp.status}`);
+debugLog(`<span class="log-err">✗ Неожиданный статус: ${resp.status} — ${ms}ms</span>`);
+workerOk = false;
+}
+} catch (err) {
+const ms = Date.now() - t0;
+setDebugStatus('err', '// НЕДОСТУПЕН');
+debugLog(`<span class="log-err">✗ Ошибка (${ms}ms): ${escHtml(err.message)}</span>`);
+if (err.message.includes('blocked') || err.message.includes('CORS')) {
+debugLog('<span class="log-warn">⚠ Возможно CORS или блокировка провайдером</span>');
+}
+workerOk = false;
+}
+updateInlineStatus();
+}
+
+async function testWorker() {
+const url = document.getElementById('workerUrlInput').value.trim();
+if (!url) { debugLog('<span class="log-err">✗ URL не указан</span>'); return; }
+WORKER_URL = url;
+setDebugStatus('pinging', '// ТЕСТ...');
+debugLog(`Test POST → <span style="color:rgba(255,255,255,0.6)">${escHtml(url)}</span>`);
+debugLog('Отправляем тестовый сигнал: "тест соединения"...');
+
+const t0 = Date.now();
+try {
+const resp = await fetch(url, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ raw_noise: 'тест соединения' }),
+signal: AbortSignal.timeout(WORKER_TIMEOUT)
+});
+
+const ms = Date.now() - t0;
+if (!resp.ok) {
+throw new Error(`HTTP ${resp.status}`);
+}
+
+const data = await resp.json();
+const ms2 = Date.now() - t0;
+
+if (data.error) {
+setDebugStatus('err', '// ОШИБКА API');
+debugLog(`<span class="log-err">✗ Worker вернул ошибку (${ms2}ms): ${escHtml(data.error)}</span>`);
+workerOk = false;
+} else {
+setDebugStatus('ok', `// ПОЛНЫЙ УСПЕХ — ${ms2}ms`);
+debugLog(`<span class="log-ok">✓ Worker + YandexGPT работают (${ms2}ms)</span>`);
+const preview = (data.interpretation || '').slice(0, 80).replace(/\n/g, ' ');
+debugLog(`<span class="log-ok">  Ответ: ${escHtml(preview)}...</span>`);
+workerOk = true;
+}
+} catch (err) {
+const ms = Date.now() - t0;
+setDebugStatus('err', '// ОШИБКА');
+debugLog(`<span class="log-err">✗ Ошибка теста (${ms}ms): ${escHtml(err.message)}</span>`);
+if (err.name === 'TimeoutError') {
+debugLog(`<span class="log-warn">⚠ Таймаут ${WORKER_TIMEOUT/1000}с — Worker не отвечает или YandexGPT недоступен</span>`);
+debugLog('<span class="log-warn">  Проверь: работает ли workers.dev через VPN?</span>');
+}
+workerOk = false;
+}
+updateInlineStatus();
+}
+
+// ═══════════════════════════════════════════════════════
+// ЧАТ
+// ═══════════════════════════════════════════════════════
+function addMessage(role, text, streaming = false) {
+const div = document.createElement('div');
+div.className = `message ${role}`;
+const mbId = `mb-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
+const label = role === 'user' ? '// ВАШ ШУМ' : '// РЕФЛЕКСИВНЫЙ УЗЕЛ';
+div.innerHTML = `
+<div class="message-header">
+<span class="msg-role ${role}">${label}</span>
+<span class="msg-time">${getTime()}</span>
+</div>
+<div class="message-body" id="${mbId}">${escHtml(text)}${streaming ? '<span class="stream-cursor"></span>' : ''}</div>`;
+chat().appendChild(div);
+scrollBottom();
+return { div, mbId };
+}
+
+function finalizeAiMessage(div, mbId, fullText, userNoise = '') {
+const body = document.getElementById(mbId);
+if (body) body.innerHTML = escHtml(fullText);
+const weaveBtn = document.createElement('button');
+weaveBtn.className = 'weave-btn';
+weaveBtn.textContent = '[ Вплести в Сеть ]';
+weaveBtn.dataset.text = fullText.slice(0, 300);
+weaveBtn.dataset.noise = userNoise.slice(0, 500);
+weaveBtn.onclick = function() { weaveIntoNet(this); };
+div.appendChild(weaveBtn);
+}
+
+async function typeText(mbId, fullText, speed = 8) {
+const body = document.getElementById(mbId);
+if (!body) return;
+for (let i = 0; i <= fullText.length; i++) {
+await new Promise(r => setTimeout(r, speed));
+body.innerHTML = escHtml(fullText.slice(0, i)) + '<span class="stream-cursor"></span>';
+if (i % 20 === 0) scrollBottom();
+}
+}
+
+// Добавляет сообщение в историю с триммингом
+function pushMessage(role, content) {
+messages.push({ role, content });
+if (messages.length > MESSAGES_MAX) {
+messages = messages.slice(-MESSAGES_MAX);
+}
+}
+
+// ═══════════════════════════════════════════════════════
+// ОТПРАВКА
+// ═══════════════════════════════════════════════════════
+async function sendMessage() {
+const textarea = document.getElementById('userInput');
+const text = textarea.value.trim();
+if (!text || isLoading) return;
+
+isLoading = true;
+document.getElementById('sendBtn').disabled = true;
+document.getElementById('sendBtnIcon').disabled = true;
+
+addMessage('user', text);
+pushMessage('user', text);
+textarea.value = '';
+updateCount();
+
+await callWorker();
+
+isLoading = false;
+document.getElementById('sendBtn').disabled = false;
+document.getElementById('sendBtnIcon').disabled = false;
+textarea.focus();
+}
+
+async function callWorker() {
+const { div, mbId } = addMessage('ai', '', true);
+const body = document.getElementById(mbId);
+let fullText = '';
+
+try {
+const response = await fetch(WORKER_URL, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ raw_noise: buildContextPayload() }),
+signal: AbortSignal.timeout(WORKER_TIMEOUT)
+});
+
+if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+const data = await response.json();
+if (data.error) throw new Error(data.error);
+
+fullText = data.interpretation || 'Сигнал не распознан';
+workerOk = true;
+updateInlineStatus();
+
+await typeText(mbId, fullText, 7);
+
+const lastUserMsg = messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
+finalizeAiMessage(div, mbId, fullText, lastUserMsg);
+pushMessage('assistant', fullText);
+} catch (err) {
+console.error('Worker error:', err);
+workerOk = false;
+updateInlineStatus();
+
+// Демо-режим
+if (body) body.innerHTML = `<span style="color:var(--accent2)">⚠ Worker: ${escHtml(err.message)}</span><br><br>`;
+
+const demoText = DEMO_RESPONSES[demoIndex % DEMO_RESPONSES.length];
+demoIndex++;
+
+for (let i = 0; i <= demoText.length; i++) {
+await new Promise(r => setTimeout(r, 9));
+if (body) body.innerHTML =
+`<span style="color:var(--accent2);font-size:0.65rem">⚠ Worker недоступен — демо-режим</span><br><br>` +
+escHtml(demoText.slice(0, i)) + '<span class="stream-cursor"></span>';
+if (i % 20 === 0) scrollBottom();
+}
+if (body) body.innerHTML =
+`<span style="color:rgba(255,100,100,0.4);font-size:0.6rem">⚠ демо-режим</span><br><br>` + escHtml(demoText);
+
+finalizeAiMessage(div, mbId, demoText);
+pushMessage('assistant', demoText);
+}
+}
+
+// Формируем контекст для Worker — последние N сообщений
+function buildContextPayload() {
+const recent = messages.slice(-CONTEXT_WINDOW);
+if (recent.length <= 1) {
+return recent[0]?.content || '';
+}
+return recent.map(m => {
+const tag = m.role === 'user' ? '[ПОЛЬЗОВАТЕЛЬ]' : '[УЗЕЛ]';
+return `${tag} ${m.content}`;
+}).join('\n\n');
+}
+
+// ═══════════════════════════════════════════════════════
+// ВПЛЕТЕНИЕ В СЕТЬ
+// ═══════════════════════════════════════════════════════
+
+// Токен на основе кодовой фразы
+async function phraseToToken(phrase) {
+  try {
+    const enc = new TextEncoder().encode(phrase.trim().toLowerCase());
+    const hash = await crypto.subtle.digest('SHA-256', enc);
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch(e) {
+    // Fallback если crypto.subtle недоступен
+    let h = 0;
+    for (const c of phrase.trim().toLowerCase()) h = (Math.imul(31, h) + c.charCodeAt(0)) | 0;
+    return Math.abs(h).toString(16).padStart(8, '0') + phrase.length.toString(16) + Date.now().toString(16).slice(-8);
+  }
+}
+
+async function getUserToken() {
+  try {
+    let token = localStorage.getItem('uc_token');
+    if (token) return token;
+
+    return new Promise(resolve => {
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;';
+      overlay.innerHTML = `
+        <div style="width:90%;max-width:420px;border:1px solid rgba(0,255,136,0.3);background:#050a05;padding:2rem;">
+          <div style="font-family:monospace;font-size:0.6rem;color:#00ff88;letter-spacing:0.2em;margin-bottom:1rem;">// КЛЮЧ УЗЛА</div>
+          <p style="font-family:monospace;font-size:0.8rem;line-height:1.7;color:rgba(255,255,255,0.7);margin-bottom:1.4rem;">Придумай кодовое слово или фразу. Оно позволит узнавать твои узлы на любом устройстве. Никто кроме тебя его не знает.</p>
+          <input id="uc-phrase-input" type="text" placeholder="твоя фраза..." style="width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(0,255,136,0.2);color:#fff;font-family:monospace;font-size:0.8rem;padding:0.6rem 0.8rem;outline:none;margin-bottom:1rem;">
+          <div style="display:flex;gap:0.8rem;">
+            <button id="uc-phrase-ok" style="flex:1;padding:0.6rem;border:1px solid #00ff88;color:#00ff88;font-family:monospace;font-size:0.7rem;letter-spacing:0.1em;background:transparent;cursor:pointer;">[ ЗАПОМНИТЬ ]</button>
+            <button id="uc-phrase-skip" style="flex:1;padding:0.6rem;border:1px solid rgba(255,255,255,0.1);color:#555;font-family:monospace;font-size:0.7rem;letter-spacing:0.1em;background:transparent;cursor:pointer;">[ пропустить ]</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+      document.getElementById('uc-phrase-input').focus();
+
+      async function confirm() {
+        const phrase = document.getElementById('uc-phrase-input').value.trim();
+        document.body.removeChild(overlay);
+        let token;
+        if (phrase) {
+          token = await phraseToToken(phrase);
+        } else {
+          token = (crypto.randomUUID?.()) || (Math.random().toString(36).slice(2) + Date.now().toString(36));
+        }
+        localStorage.setItem('uc_token', token);
+        resolve(token);
+      }
+
+      document.getElementById('uc-phrase-ok').onclick = confirm;
+      document.getElementById('uc-phrase-skip').onclick = confirm;
+      document.getElementById('uc-phrase-input').onkeydown = e => { if (e.key === 'Enter') confirm(); };
+    });
+  } catch(e) {
+    // Полный fallback — генерируем рандомный токен
+    console.warn('getUserToken error:', e);
+    let token = localStorage.getItem('uc_token');
+    if (!token) {
+      token = (crypto.randomUUID?.()) || (Math.random().toString(36).slice(2) + Date.now().toString(36));
+      localStorage.setItem('uc_token', token);
+    }
+    return token;
+  }
+}
+
+function getCoords() {
+return new Promise(resolve => {
+if (!navigator.geolocation) return resolve({ lat: null, lng: null });
+navigator.geolocation.getCurrentPosition(
+pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+() => resolve({ lat: null, lng: null }),
+{ timeout: 10000, maximumAge: 0, enableHighAccuracy: false }
+);
+});
+}
+
+async function weaveIntoNet(btn) {
+// Защита от двойного тапа: если уже идёт отправка с этой кнопки — игнорим
+if (btn.dataset.weaveInProgress === '1') return;
+btn.dataset.weaveInProgress = '1';
+
+btn.textContent = '[ ВПЛЕТЕНИЕ... ]';
+btn.disabled = true;
+
+const SUPABASE_URL = 'https://lukyyqabkxzrgdixzphs.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_c94zOuVnId_NFhHZgRzQ2Q_h3tljPjf';
+
+try {
+const { lat, lng } = await getCoords();
+const userToken = await getUserToken();
+
+const payload = {
+raw_noise: btn.dataset.noise || btn.dataset.text,
+ai_interpretation: btn.dataset.text,
+user_token: userToken
+};
+if (lat !== null) payload.lat = lat;
+if (lng !== null) payload.lng = lng;
+
+const res = await fetch(`${SUPABASE_URL}/rest/v1/nodes`, {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+'apikey': SUPABASE_KEY,
+'Authorization': 'Bearer ' + SUPABASE_KEY,
+'Prefer': 'return=minimal',
+},
+body: JSON.stringify(payload),
+});
+
+if (!res.ok) throw new Error('HTTP ' + res.status);
+
+btn.textContent = '[ ✓ ВПЛЕТЕНО ]';
+btn.style.color = 'var(--accent)';
+btn.style.borderColor = 'rgba(0,255,136,0.3)';
+// Успех — кнопка остаётся disabled навсегда, флаг не сбрасываем
+} catch(e) {
+console.warn('Supabase error', e);
+btn.textContent = '[ ✗ ОЖИДАНИЕ... ]';
+btn.style.color = 'var(--accent2)';
+// КУЛДАУН 5 секунд: даже после ошибки нельзя сразу нажать снова —
+// первый запрос мог дойти до Supabase, но ответ потерялся
+let countdown = 5;
+const tick = setInterval(() => {
+countdown--;
+if (countdown > 0) {
+btn.textContent = `[ ✗ ОЖИДАНИЕ ${countdown}... ]`;
+} else {
+clearInterval(tick);
+btn.textContent = '[ ✗ ПОВТОРИТЬ ]';
+btn.disabled = false;
+btn.dataset.weaveInProgress = '0';
+}
+}, 1000);
+}
+}
+
+// ═══════════════════════════════════════════════════════
+// АНИМАЦИЯ СИСТЕМНОГО СООБЩЕНИЯ
+// ═══════════════════════════════════════════════════════
+(function(){
+var el = document.querySelector('.sys-msg');
+if(!el) return;
+var DUR = 3200, start = null;
+function curve(p) {
+if(p < 0.35) return (p / 0.35) * 1.2;
+var t = (p - 0.35) / 0.65;
+return 1.2 - 0.2 * (1 - Math.pow(1 - t, 3));
+}
+var sysText = el.querySelector('.sys-text');
+var sysTag = el.querySelector('.sys-tag');
+if(sysText) {
+var parts = sysText.innerHTML.split(/<br\s*\/?>/i);
+sysText.innerHTML = parts.map(p => '<span class="sys-line" style="display:block">' + p + '</span>').join('');
+}
+var lines = sysText ? Array.from(sysText.querySelectorAll('.sys-line')) : [];
+if(sysTag) sysTag.style.transformOrigin = 'left center';
+el.style.opacity = '0'; el.style.transformOrigin = 'left center';
+setTimeout(function(){
+function frame(ts) {
+if(!start) start = ts;
+var p = Math.min((ts - start) / DUR, 1);
+el.style.opacity = Math.min(1, p / 0.08).toFixed(3);
+var globalS = curve(p);
+el.style.transform = 'scale(' + globalS.toFixed(4) + ')';
+if(sysTag) sysTag.style.transform = 'scale(' + (1/globalS).toFixed(4) + ')';
+var returnStart = 0.38, step = 0.12;
+lines.forEach(function(line, i) {
+var ls = returnStart + i * step;
+if(p < 0.35) { line.style.transform = 'none'; }
+else if(p < ls) { line.style.transform = 'scale(1.06)'; line.style.transformOrigin = 'left center'; }
+else {
+var t2 = Math.min((p - ls) / (1 - ls), 1);
+line.style.transform = 'scale(' + (1 + 0.06*(1-Math.pow(t2,0.35))).toFixed(4) + ')';
+line.style.filter = 'brightness(' + (1 + 0.8*Math.pow(1-t2,3)).toFixed(2) + ')';
+line.style.transformOrigin = 'left center';
+}
+});
+if(p < 1) requestAnimationFrame(frame);
+else {
+el.style.transform = 'none'; el.style.opacity = '1';
+if(sysTag) sysTag.style.transform = 'none';
+// Сбрасываем все строки кроме последней
+lines.forEach(function(l, i) {
+if(i < lines.length - 1) { l.style.transform = 'none'; l.style.filter = 'none'; }
+});
+// Последняя строка — отдельная анимация роста
+var lastLine = lines[lines.length - 1];
+if(lastLine) {
+lastLine.style.transform = 'none';
+lastLine.style.filter = 'none';
+var growDur = 900, growStart = null;
+function growFrame(ts) {
+if(!growStart) growStart = ts;
+var gp = Math.min((ts - growStart) / growDur, 1);
+var ease = 1 - Math.pow(1 - gp, 3);
+lastLine.style.transform = 'scale(' + (1 + 0.22 * ease).toFixed(4) + ')';
+lastLine.style.transformOrigin = 'left center';
+lastLine.style.color = 'rgba(0,255,136,' + (0.5 + 0.5 * ease).toFixed(3) + ')';
+if(gp < 1) requestAnimationFrame(growFrame);
+}
+setTimeout(function(){ requestAnimationFrame(growFrame); }, 300);
+}
+}
+}
+requestAnimationFrame(frame);
+}, 500);
+})();
+</script>
+</body>
+</html>

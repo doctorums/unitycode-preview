@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<!-- ════════════════════════════════════════════════════════════════════════
+     UNITYCODE · ИМПЛАНТ (аналитик)  —  ПАМЯТКА ФОРКЕРУ
+     Подробности: FORK.md в корне репозитория.
+
+     ✏️  МЕНЯЙ СВОБОДНО: тексты, цвета, оформление, подписи кнопок.
+     ⚙️  ВПИШИ СВОЁ при форке (ОБА адреса!):
+         • WORKER_URL  — твой Worker-генератор (≈ строка 259);
+         • ANALYZE_URL — твой Worker-аналитик  (≈ строка 262);
+         • SUPABASE_URL / SUPABASE_KEY — твоя база (ищи по тексту).
+     ⛔️ НЕ ТРОГАЙ (несущая стена):
+         • контракт аналитика: POST { scope, nodes, connections } → { interpretation };
+         • scope только из набора personal | social | collective;
+         • три пункта меню и имена файлов.
+════════════════════════════════════════════════════════════════════════ -->
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UNITYCODE — Имплант</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Unbounded:wght@200;400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared.css">
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+
+    main {
+      flex: 1;
+      max-width: 800px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 2rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .section {
+      border: 1px solid var(--border);
+      margin-bottom: 2rem;
+      padding: 1.5rem;
+      position: relative;
+    }
+
+    .section::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    }
+
+    .section-tag {
+      font-size: 0.55rem;
+      color: var(--accent);
+      letter-spacing: 0.2em;
+      margin-bottom: 1.2rem;
+      text-transform: uppercase;
+    }
+
+    .section-desc {
+      font-size: 0.75rem;
+      color: var(--dim);
+      line-height: 1.7;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Шумы пользователя */
+    .noise-list {
+      margin-bottom: 1.5rem;
+    }
+
+    .noise-item {
+      border-left: 2px solid rgba(0,255,136,0.2);
+      padding: 0.6rem 1rem;
+      margin-bottom: 0.8rem;
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.7);
+      line-height: 1.6;
+    }
+
+    .noise-item .noise-time {
+      font-size: 0.55rem;
+      color: var(--dim);
+      margin-top: 0.3rem;
+    }
+
+    .noise-empty {
+      font-size: 0.75rem;
+      color: var(--dim);
+      text-align: center;
+      padding: 2rem;
+    }
+
+    /* Кнопка анализа */
+    .analyze-btn {
+      display: inline-block;
+      padding: 0.8rem 2rem;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      cursor: pointer;
+      background: transparent;
+      transition: background 0.2s, color 0.2s;
+      width: 100%;
+    }
+
+    .analyze-btn:hover { background: var(--accent); color: var(--black); }
+    .analyze-btn:disabled { opacity: 0.4; cursor: default; }
+
+    /* Результат анализа */
+    .analysis-result {
+      margin-top: 1.5rem;
+      display: none;
+    }
+
+    .analysis-result.visible { display: block; }
+
+    .analysis-block {
+      margin-bottom: 1.5rem;
+    }
+
+    .analysis-label {
+      font-size: 0.55rem;
+      color: var(--accent);
+      letter-spacing: 0.2em;
+      margin-bottom: 0.8rem;
+    }
+
+    .analysis-text {
+      font-size: 0.8rem;
+      line-height: 1.8;
+      color: rgba(255,255,255,0.8);
+      white-space: pre-wrap;
+    }
+
+    .analysis-divider {
+      width: 40px;
+      height: 1px;
+      background: rgba(0,255,136,0.2);
+      margin: 1.2rem 0;
+    }
+
+    /* Загрузка */
+    .loading-dots {
+      display: none;
+      font-size: 0.7rem;
+      color: var(--dim);
+      letter-spacing: 0.2em;
+      margin-top: 1rem;
+      text-align: center;
+    }
+    .loading-dots.visible { display: block; }
+
+    /* Статы */
+    .stats-row {
+      display: flex;
+      gap: 2rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .stat-box {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .stat-box .stat-label {
+      font-size: 0.5rem;
+      color: var(--dim);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .stat-box .stat-val {
+      font-size: 1.2rem;
+      color: var(--accent);
+    }
+
+    /* Нет токена */
+    .no-token {
+      text-align: center;
+      padding: 3rem 1rem;
+    }
+
+    .no-token p {
+      font-size: 0.8rem;
+      color: var(--dim);
+      line-height: 1.7;
+      margin-bottom: 1.5rem;
+    }
+
+    .no-token a {
+      display: inline-block;
+      padding: 0.7rem 1.5rem;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      text-decoration: none;
+      text-transform: uppercase;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .no-token a:hover { background: var(--accent); color: var(--black); }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="index.html" class="logo">UNITYCODE // ИМПЛАНТ</a>
+  <nav>
+    <a href="implant.html">Имплант</a>
+    <a href="petlya.html">Спираль</a>
+    <a href="set.html">Сеть</a>
+  </nav>
+</header>
+
+<main>
+
+  <!-- Блок 1: Личный узел -->
+  <div class="section" id="personal-section">
+    <div class="section-tag">// ТВОЙ УЗЕЛ</div>
+
+    <div id="personal-content">
+      <!-- Заполняется JS -->
+    </div>
+  </div>
+
+  <!-- Блок 2: Коллективный анализ -->
+  <div class="section">
+    <div class="section-tag">// СЕТЬ СЕЙЧАС</div>
+    <div class="section-desc">Коллективный срез — паттерны и резонансы всей Сети. ИИ анализирует шумы и связи всех участников.</div>
+
+    <div class="stats-row">
+      <div class="stat-box">
+        <span class="stat-label">Узлов в сети</span>
+        <span class="stat-val" id="total-nodes">—</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-label">Связей</span>
+        <span class="stat-val" id="total-connections">—</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-label">Участников</span>
+        <span class="stat-val" id="total-users">—</span>
+      </div>
+    </div>
+
+    <button class="analyze-btn" id="collective-btn" onclick="runCollectiveAnalysis()">[ Запустить анализ Сети ]</button>
+
+    <div class="loading-dots" id="collective-loading">// АНАЛИЗ...</div>
+
+    <div class="analysis-result" id="collective-result">
+      <div class="analysis-divider"></div>
+      <div class="analysis-block">
+        <div class="analysis-label">// ПАТТЕРНЫ СЕТИ</div>
+        <div class="analysis-text" id="collective-text"></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script src="nav.js"></script>
+<script>
+const SUPABASE_URL = 'https://lukyyqabkxzrgdixzphs.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_c94zOuVnId_NFhHZgRzQ2Q_h3tljPjf';
+
+// Агент-Генератор (Спираль) — остаётся для совместимости, в анализе НЕ участвует
+const WORKER_URL = 'https://unitycode-petlya.sv2txxznjm.workers.dev';
+
+// Агент-Аналитик (Имплант)
+const ANALYZE_URL = 'https://unitycode-analyze.sv2txxznjm.workers.dev';
+
+const headers = { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY };
+
+function timeAgo(iso) {
+  const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (diff < 60)    return 'только что';
+  if (diff < 3600)  return Math.floor(diff / 60) + ' мин. назад';
+  if (diff < 86400) return Math.floor(diff / 3600) + ' ч. назад';
+  return Math.floor(diff / 86400) + ' дн. назад';
+}
+
+// ═══════════════════════════════════════════════════════
+// ЛИЧНЫЙ БЛОК
+// ═══════════════════════════════════════════════════════
+async function loadPersonal() {
+  const myToken = localStorage.getItem('uc_token');
+  const container = document.getElementById('personal-content');
+
+  if (!myToken) {
+    container.innerHTML = `
+      <div class="no-token">
+        <p>Чтобы увидеть анализ своего узла — пройди Спираль и создай шум. Твои мысли станут частью Сети.</p>
+        <a href="petlya.html">[ Перейти в Спираль ]</a>
+      </div>`;
+    return;
+  }
+
+  // Сначала — свои узлы
+  const nodesRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/nodes?user_token=eq.${myToken}&select=id,created_at,raw_noise&order=created_at.desc`,
+    { headers }
+  );
+  const myNodes = await nodesRes.json();
+
+  if (!Array.isArray(myNodes) || !myNodes.length) {
+    container.innerHTML = `
+      <div class="no-token">
+        <p>У тебя пока нет шумов в Сети. Пройди Спираль — вплети свой первый шум.</p>
+        <a href="petlya.html">[ Перейти в Спираль ]</a>
+      </div>`;
+    return;
+  }
+
+  // Теперь — связи по ID этих узлов. Supabase REST хочет явный список id,
+  // а не SQL-подзапрос. Собираем список и спрашиваем связи в обе стороны.
+  const myIds = myNodes.map(n => n.id);
+  const idList = `(${myIds.join(',')})`;
+
+  let totalConnections = 0;
+  try {
+    const [connsFromRes, connsToRes] = await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/connections?from_node_id=in.${idList}&status=eq.accepted&select=id`, { headers }),
+      fetch(`${SUPABASE_URL}/rest/v1/connections?to_node_id=in.${idList}&status=eq.accepted&select=id`, { headers }),
+    ]);
+    const connsFrom = await connsFromRes.json();
+    const connsTo = await connsToRes.json();
+    const cntFrom = Array.isArray(connsFrom) ? connsFrom.length : 0;
+    const cntTo = Array.isArray(connsTo) ? connsTo.length : 0;
+    totalConnections = cntFrom + cntTo;
+  } catch (e) {
+    console.warn('Ошибка подсчёта связей:', e);
+    totalConnections = 0;
+  }
+
+  container.innerHTML = `
+    <div class="stats-row">
+      <div class="stat-box">
+        <span class="stat-label">Твоих шумов</span>
+        <span class="stat-val">${myNodes.length}</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-label">Связей</span>
+        <span class="stat-val">${totalConnections}</span>
+      </div>
+    </div>
+    <div class="noise-list" id="my-noises"></div>
+    <button class="analyze-btn" id="personal-btn" onclick="runPersonalAnalysis()">[ Анализ моего узла ]</button>
+    <div class="loading-dots" id="personal-loading">// АНАЛИЗ...</div>
+    <div class="analysis-result" id="personal-result">
+      <div class="analysis-divider"></div>
+      <div class="analysis-block">
+        <div class="analysis-label">// ПАТТЕРН ТВОЕГО УЗЛА</div>
+        <div class="analysis-text" id="personal-text"></div>
+      </div>
+    </div>`;
+
+  const list = document.getElementById('my-noises');
+  myNodes.forEach(node => {
+    list.innerHTML += `
+      <div class="noise-item">
+        ${node.raw_noise}
+        <div class="noise-time">${timeAgo(node.created_at)}</div>
+      </div>`;
+  });
+
+  // Сохраняем шумы для анализа
+  window._myNoises = myNodes.map(n => n.raw_noise);
+}
+
+// ═══════════════════════════════════════════════════════
+// АНАЛИЗ ЛИЧНОГО УЗЛА
+// ═══════════════════════════════════════════════════════
+async function runPersonalAnalysis() {
+  const btn = document.getElementById('personal-btn');
+  const loading = document.getElementById('personal-loading');
+  const result = document.getElementById('personal-result');
+  const textEl = document.getElementById('personal-text');
+
+  btn.disabled = true;
+  loading.classList.add('visible');
+
+  const noises = window._myNoises || [];
+  if (!noises.length) { loading.classList.remove('visible'); btn.disabled = false; return; }
+
+  try {
+    // Шлём граф Агенту-Аналитику. Промпт и структура живут в Worker'е,
+    // браузер только передаёт данные: режим + узлы.
+    const res = await fetch(ANALYZE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scope: 'personal',
+        nodes: noises.map(n => ({ raw_noise: n })),
+      }),
+    });
+    const data = await res.json();
+    textEl.textContent = data.interpretation || 'Сигнал не распознан';
+    result.classList.add('visible');
+  } catch(e) {
+    textEl.textContent = 'Ошибка связи с узлом анализа.';
+    result.classList.add('visible');
+  } finally {
+    loading.classList.remove('visible');
+    btn.disabled = false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// КОЛЛЕКТИВНЫЙ АНАЛИЗ
+// ═══════════════════════════════════════════════════════
+async function loadStats() {
+  try {
+    const [nodesRes, connsRes] = await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/nodes?select=id,user_token`, { headers }),
+      fetch(`${SUPABASE_URL}/rest/v1/connections?select=id&status=eq.accepted`, { headers }),
+    ]);
+    const [nodes, conns] = await Promise.all([nodesRes.json(), connsRes.json()]);
+
+    const uniqueUsers = new Set(nodes.filter(n => n.user_token).map(n => n.user_token)).size;
+
+    document.getElementById('total-nodes').textContent = nodes.length;
+    document.getElementById('total-connections').textContent = conns.length;
+    document.getElementById('total-users').textContent = uniqueUsers;
+
+    // Сохраняем для анализа
+    window._allNodeIds = nodes.map(n => n.id);
+  } catch(e) { console.warn('Stats error', e); }
+}
+
+async function runCollectiveAnalysis() {
+  const btn = document.getElementById('collective-btn');
+  const loading = document.getElementById('collective-loading');
+  const result = document.getElementById('collective-result');
+  const textEl = document.getElementById('collective-text');
+
+  btn.disabled = true;
+  loading.classList.add('visible');
+
+  try {
+    // Берём последние 30 шумов + счётчик связей для контекста
+    const [nodesRes, connsRes] = await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/nodes?select=raw_noise&order=created_at.desc&limit=30`, { headers }),
+      fetch(`${SUPABASE_URL}/rest/v1/connections?select=id&status=eq.accepted`, { headers }),
+    ]);
+    const nodes = await nodesRes.json();
+    const conns = await connsRes.json();
+
+    if (!nodes.length) {
+      textEl.textContent = 'Сеть пока пуста.';
+      result.classList.add('visible');
+      return;
+    }
+
+    // Шлём граф Агенту-Аналитику в режиме коллективного среза
+    const aiRes = await fetch(ANALYZE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scope: 'collective',
+        nodes: nodes,                                   // [{ raw_noise }, ...]
+        connections: conns.map(c => ({ id: c.id })),    // для контекста плотности
+      }),
+    });
+    const data = await aiRes.json();
+    textEl.textContent = data.interpretation || 'Сигнал не распознан';
+    result.classList.add('visible');
+
+  } catch(e) {
+    textEl.textContent = 'Ошибка связи с узлом анализа.';
+    result.classList.add('visible');
+  } finally {
+    loading.classList.remove('visible');
+    btn.disabled = false;
+  }
+}
+
+// Инициализация
+loadPersonal();
+loadStats();
+</script>
+</body>
+</html>

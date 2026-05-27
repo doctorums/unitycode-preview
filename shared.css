@@ -1,0 +1,117 @@
+/* ═══════════════════════════════════════════════════════
+   UNITYCODE — shared.css  v7.6
+   Общие переменные, хедер, навигация, grid-фон
+═══════════════════════════════════════════════════════ */
+
+:root {
+  --black:   #000;
+  --white:   #fff;
+  --dim:     #555;
+  --accent:  #00ff88;
+  --accent2: #ff3366;
+  --glow:    rgba(0, 255, 136, 0.12);
+  --border:  rgba(255, 255, 255, 0.08);
+  --user-bg: rgba(0, 255, 136, 0.05);
+  --ai-bg:   rgba(255, 255, 255, 0.02);
+}
+
+/* ── Reset ───────────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* ── Base ────────────────────────────────────────────── */
+body {
+  background: var(--black);
+  color: var(--white);
+  font-family: 'Share Tech Mono', monospace;
+}
+
+/* ── Grid background ─────────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0, 255, 136, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 136, 0.025) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Header ──────────────────────────────────────────── */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.2rem 2rem;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.95);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo {
+  font-family: 'Unbounded', sans-serif;
+  font-weight: 200;
+  font-size: 0.7rem;
+  letter-spacing: 0.3em;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+/* ── Nav ─────────────────────────────────────────────── */
+nav { display: flex; gap: 1.5rem; }
+
+nav a {
+  font-size: 0.6rem;
+  letter-spacing: 0.15em;
+  color: var(--dim);
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: color 0.2s;
+}
+
+nav a:hover,
+nav a.active { color: var(--accent); }
+
+/* ── Scrollbar ───────────────────────────────────────── */
+::-webkit-scrollbar       { width: 2px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--dim); }
+
+/* ── Shared button styles ────────────────────────────── */
+.btn-outline {
+  display: inline-block;
+  padding: 0.8rem 2rem;
+  border: 1px solid var(--white);
+  color: var(--white);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-decoration: none;
+  text-transform: uppercase;
+  cursor: pointer;
+  background: transparent;
+  transition: background 0.2s, color 0.2s;
+}
+.btn-outline:hover { background: var(--white); color: var(--black); }
+
+.btn-accent {
+  display: inline-block;
+  padding: 0.8rem 2rem;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-decoration: none;
+  text-transform: uppercase;
+  cursor: pointer;
+  background: transparent;
+  transition: background 0.2s, color 0.2s;
+}
+.btn-accent:hover { background: var(--accent); color: var(--black); }
+
+/* ── Utility ─────────────────────────────────────────── */
+.z5 { position: relative; z-index: 5; }
