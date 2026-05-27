@@ -2,7 +2,7 @@
 <html lang="ru"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Test 2</title>
+<title>Test 3</title>
 <style>
   html,body { height:100%; margin:0; }
   body { background:#0a0a0a; color:#ddd; font-family:monospace; min-height:100vh; overflow:hidden; }
@@ -13,7 +13,12 @@
     padding:0.6rem 1rem; font-family:monospace; font-size:0.8rem;
     cursor:pointer; text-decoration:none; display:inline-block;
   }
-  #text { display:none; max-width:600px; margin:2rem; padding:1rem; background:rgba(20,30,50,0.5); position:relative; z-index:2; }
+  /* как в материалах: радиальный градиент + блюр */
+  #text {
+    display:none; max-width:600px; margin:2rem; padding:24px; position:relative; z-index:2;
+    background: radial-gradient(ellipse at center, rgba(10,18,32,0.42) 0%, rgba(10,18,32,0.294) 60%, rgba(10,18,32,0) 100%);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  }
   #text.show { display:block; }
 </style>
 </head><body>
@@ -27,8 +32,8 @@
 </div>
 
 <div id="text">
-  <h2>Тест 2: со звёздным небом</h2>
-  <p>Если меню пропадает при нажатии — виноват canvas или его сочетание с overflow:hidden на body.</p>
+  <h2>Тест 3: с подложкой и блюром</h2>
+  <p>Если меню пропало — виноват backdrop-filter (блюр) или радиальный градиент в сочетании с fixed-меню на iPad.</p>
 </div>
 
 <script>
@@ -38,7 +43,6 @@
     document.getElementById('text').classList.toggle('show', open);
   };
 
-  // звёзды
   const cv=document.getElementById('sky'), ctx=cv.getContext('2d');
   let W,H,stars;
   function init(){
