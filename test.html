@@ -2,20 +2,23 @@
 <html lang="ru"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Test 3</title>
+<title>Test 4</title>
 <style>
   html,body { height:100%; margin:0; }
-  body { background:#0a0a0a; color:#ddd; font-family:monospace; min-height:100vh; overflow:hidden; }
+  body { background:#0a0a0a; color:#ddd; font-family:monospace; min-height:100vh; overflow:hidden;
+         display:flex; flex-direction:column; }
   #sky { position:fixed; inset:0; z-index:0; pointer-events:none; touch-action:none; }
+  header { position:relative; z-index:3; padding:1rem; border-bottom:1px solid #222; }
+  main { position:relative; z-index:2; flex:1; width:100%; max-width:820px;
+         margin:0 auto; padding:2.5rem 9rem 4rem 1.4rem; overflow-y:auto; }
   .menu { position:fixed; top:5rem; right:1rem; display:flex; flex-direction:column; gap:0.5rem; z-index:10; }
   .menu button, .menu a {
     background:rgba(0,0,0,0.7); color:#888; border:1px solid #333;
     padding:0.6rem 1rem; font-family:monospace; font-size:0.8rem;
     cursor:pointer; text-decoration:none; display:inline-block;
   }
-  /* как в материалах: радиальный градиент + блюр */
   #text {
-    display:none; max-width:600px; margin:2rem; padding:24px; position:relative; z-index:2;
+    display:none; max-width:680px; padding:24px;
     background: radial-gradient(ellipse at center, rgba(10,18,32,0.42) 0%, rgba(10,18,32,0.294) 60%, rgba(10,18,32,0) 100%);
     backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   }
@@ -25,16 +28,20 @@
 
 <canvas id="sky"></canvas>
 
-<div class="menu">
-  <a href="#">КНИГА</a>
-  <button id="toggle">КАК ФОРКНУТЬ</button>
-  <a href="#">ФОРКНУТЬ</a>
-</div>
+<header>ШАПКА</header>
 
-<div id="text">
-  <h2>Тест 3: с подложкой и блюром</h2>
-  <p>Если меню пропало — виноват backdrop-filter (блюр) или радиальный градиент в сочетании с fixed-меню на iPad.</p>
-</div>
+<main>
+  <div class="menu">
+    <a href="#">КНИГА</a>
+    <button id="toggle">КАК ФОРКНУТЬ</button>
+    <a href="#">ФОРКНУТЬ</a>
+  </div>
+  <div id="text">
+    <h2>Тест 4: меню внутри main</h2>
+    <p>Здесь меню как в материалах — внутри main с прокруткой. Если меню пропадает — виновата структура с main, и надо вынести меню наружу.</p>
+    <p>Текст 1 для прокрутки.</p><p>Текст 2.</p><p>Текст 3.</p>
+  </div>
+</main>
 
 <script>
   let open = false;
@@ -42,22 +49,16 @@
     open = !open;
     document.getElementById('text').classList.toggle('show', open);
   };
-
   const cv=document.getElementById('sky'), ctx=cv.getContext('2d');
   let W,H,stars;
-  function init(){
-    W=cv.width=innerWidth; H=cv.height=innerHeight;
-    stars=Array.from({length:200},()=>({x:Math.random()*W,y:Math.random()*H,a:0.3+Math.random()*0.5,ph:Math.random()*7}));
-  }
+  function init(){ W=cv.width=innerWidth; H=cv.height=innerHeight;
+    stars=Array.from({length:200},()=>({x:Math.random()*W,y:Math.random()*H,a:0.3+Math.random()*0.5,ph:Math.random()*7})); }
   function loop(t){
     ctx.fillStyle='#050a14'; ctx.fillRect(0,0,W,H);
-    for(const s of stars){
-      const tw=0.4+0.6*Math.sin(t/1000+s.ph);
-      ctx.fillStyle='rgba(220,235,255,'+(s.a*tw).toFixed(3)+')';
-      ctx.fillRect(s.x,s.y,1,1);
-    }
+    for(const s of stars){ const tw=0.4+0.6*Math.sin(t/1000+s.ph);
+      ctx.fillStyle='rgba(220,235,255,'+(s.a*tw).toFixed(3)+')'; ctx.fillRect(s.x,s.y,1,1); }
     requestAnimationFrame(loop);
   }
   addEventListener('resize',init); init(); requestAnimationFrame(loop);
 </script>
-</body></html>
+</body></
