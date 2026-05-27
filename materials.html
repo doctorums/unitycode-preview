@@ -26,7 +26,7 @@
          margin:0 auto; padding:2.5rem 1.4rem 4rem; overflow-y:auto; }
 
   /* Компактное меню материалов (позиция/размер задаются из CONFIG.menu) */
-  .mat-menu { position:absolute; z-index:4; display:flex; flex-direction:column; gap:0.5rem; }
+  .mat-menu { position:fixed; z-index:5; display:flex; flex-direction:column; gap:0.5rem; }
   .mat-item { font-family:'Share Tech Mono',monospace; letter-spacing:0.1em; text-transform:uppercase;
               cursor:pointer; text-decoration:none; transition:color 0.2s,border-color 0.2s,background 0.2s;
               backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
@@ -75,7 +75,7 @@ const CONFIG = {
 
   // ── Подложка контента (как текст лежит на небе) ───────────────────────
   panel: {
-    opacity:   0.6,   // непрозрачность вуали: 0 = текст прямо на звёздах, 1 = плотная коробка
+    opacity:   0.42,   // непрозрачность вуали: 0 = текст прямо на звёздах, 1 = плотная коробка
     blur:      8,      // размытие неба под текстом, px (0 = без размытия)
     softEdges: true,   // true = края дымки тают в небо (без рамки); false = ровная вуаль
     tint:      "10,18,32", // цвет вуали, R,G,B (тёмно-синий «космос»)
@@ -113,7 +113,7 @@ const CONFIG = {
   // ── Меню материалов (положение и вид) ─────────────────────────────────
   menu: {
     corner:     "top-right",   // top-right | top-left | bottom-right | bottom-left
-    offset:     "2.5rem 0.5rem",// отступ от края: «сверху/снизу  справа/слева»
+    offset:     "5rem 0.8rem", // отступ от края окна: «сверху/снизу  справа/слева» (меню прилипло к экрану)
     fontSize:   "0.72rem",
     padding:    "0.5rem 0.9rem",
     bg:         "rgba(0,0,0,0.5)",   // фон кнопок
