@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ru"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test</title>
+<style>
+  body { margin:0; background:#0a0a0a; color:#ddd; font-family:monospace; min-height:100vh; }
+  .menu { position:fixed; top:5rem; right:1rem; display:flex; flex-direction:column; gap:0.5rem; z-index:10; }
+  .menu button, .menu a {
+    background:rgba(0,0,0,0.7); color:#888; border:1px solid #333;
+    padding:0.6rem 1rem; font-family:monospace; font-size:0.8rem;
+    cursor:pointer; text-decoration:none; display:inline-block;
+  }
+  #text { display:none; max-width:600px; margin:2rem; padding:1rem; background:rgba(20,30,50,0.5); }
+  #text.show { display:block; }
+</style>
+</head><body>
+
+<div class="menu">
+  <a href="#">КНИГА</a>
+  <button id="toggle">КАК ФОРКНУТЬ</button>
+  <a href="#">ФОРКНУТЬ</a>
+</div>
+
+<div id="text">
+  <h2>Тестовый текст</h2>
+  <p>Это просто текст. Если меню справа остаётся видимым при нажатии кнопки «Как форкнуть» — значит проблема не в браузере, а в чём-то конкретном из основной страницы (небо, подложка, скрипт).</p>
+  <p>Если меню всё равно пропадает — проблема глубже, в самом сочетании fixed-меню и появляющегося блока в этом браузере.</p>
+</div>
+
+<script>
+  let open = false;
+  document.getElementById('toggle').onclick = () => {
+    open = !open;
+    document.getElementById('text').classList.toggle('show', open);
+  };
+</script>
+</body></html>
