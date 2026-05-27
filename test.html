@@ -12,7 +12,7 @@
   main { position:relative; z-index:2; flex:1; width:100%; max-width:820px;
          margin:0 auto; padding:2.5rem 9rem 4rem 1.4rem; overflow-y:auto; }
   .menu { position:fixed; top:5rem; right:1rem; display:flex; flex-direction:column; gap:0.5rem; z-index:10;
-          transform:translateZ(0); will-change:transform; }
+          transform:translateZ(0); will-change:transform; pointer-events:auto; }
   .menu button, .menu a {
     background:rgba(0,0,0,0.72); color:#888; border:1px solid rgba(255,255,255,0.08);
     padding:0.5rem 0.9rem; font-family:'Share Tech Mono',monospace;
@@ -20,19 +20,19 @@
     cursor:pointer; text-decoration:none; display:inline-block;
     -webkit-tap-highlight-color:rgba(255,255,255,0.1);
   }
-  #text {
+  #reader {
     display:none; max-width:680px; padding:24px;
     background: radial-gradient(ellipse at center, rgba(10,18,32,0.42) 0%, rgba(10,18,32,0.294) 60%, rgba(10,18,32,0) 100%);
     backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   }
-  #text.show { display:block; }
+  #reader.show { display:block; }
 </style>
 </head><body>
 
 <canvas id="sky"></canvas>
 
 <header>
-  <a href="index.html" class="logo">UNITYCODE // ТЕСТ 6</a>
+  <a href="index.html" class="logo">UNITYCODE // ТЕСТ 7</a>
   <nav>
     <a href="implant.html">Имплант</a>
     <a href="petlya.html">Спираль</a>
@@ -43,29 +43,42 @@
 
 <main>
   <div class="menu" id="menu"></div>
-  <div id="text"></div>
+  <div id="reader"><div id="readerBody"></div></div>
 </main>
 
 <script>
-  // меню СОЗДАЁТСЯ СКРИПТОМ — как в материалах
+  // ТОЧНАЯ КОПИЯ ЛОГИКИ ИЗ МАТЕРИАЛОВ — с fetch FORK.md
   const items = [
-    { type:"link", title:"Книга", href:"#" },
-    { type:"toggle", title:"Как форкнуть" },
-    { type:"link", title:"Форкнуть", href:"#" },
+    { id:"book", type:"link", title:"Книга", href:"#" },
+    { id:"fork", type:"reader", title:"Как форкнуть", src:"FORK.md" },
+    { id:"repo", type:"ext", title:"Форкнуть", href:"#" },
   ];
-  const text = document.getElementById('text');
-  let open = false;
+  const reader = document.getElementById('reader');
+  const readerBody = document.getElementById('readerBody');
+  let openId = null;
+
   items.forEach(m => {
-    const el = document.createElement(m.type==='toggle' ? 'button' : 'a');
+    const el = document.createElement(m.type==='reader' ? 'button' : 'a');
     el.textContent = m.title;
-    if (m.type === 'link') el.href = m.href;
-    if (m.type === 'toggle') el.onclick = () => {
-      open = !open;
-      text.classList.toggle('show', open);
-      text.innerHTML = open ? '<h2>Текст</h2><p>Создано скриптом. Если меню пропало — виновата сборка через createElement.</p>' : '';
-    };
+    if (m.type==='link' || m.type==='ext') el.href = m.href;
+    if (m.type==='reader') el.onclick = () => toggle(m);
     document.getElementById('menu').appendChild(el);
   });
+
+  function toggle(m){
+    if (openId===m.id) { reader.classList.remove('show'); openId=null; }
+    else openReader(m);
+  }
+  async function openReader(m){
+    openId = m.id;
+    reader.classList.add('show');
+    readerBody.innerHTML = '<p>Загрузка…</p>';
+    try {
+      const res = await fetch(m.src);
+      if (!res.ok) throw 0;
+      readerBody.innerHTML = '<pre style="white-space:pre-wrap">'+(await res.text()).replace(/</g,'&lt;')+'</pre>';
+    } catch(e) { readerBody.innerHTML = '<p>Не удалось загрузить</p>'; }
+  }
 
   const cv=document.getElementById('sky'), ctx=cv.getContext('2d');
   let W,H,stars;
