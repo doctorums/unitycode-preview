@@ -19,7 +19,7 @@
 <link rel="stylesheet" href="shared.css">
 <style>
   html,body { height:100%; }
-  body { min-height:100vh; display:flex; flex-direction:column; }
+  body { min-height:100vh; display:flex; flex-direction:column; overflow:hidden; }
   #sky { position:fixed; inset:0; z-index:0; display:block; }
   header { position:relative; z-index:3; }
   main { position:relative; z-index:2; flex:1; width:100%; max-width:820px;
@@ -28,8 +28,7 @@
   /* Компактное меню материалов (позиция/размер задаются из CONFIG.menu) */
   .mat-menu { position:fixed; z-index:5; display:flex; flex-direction:column; gap:0.5rem; }
   .mat-item { font-family:'Share Tech Mono',monospace; letter-spacing:0.1em; text-transform:uppercase;
-              cursor:pointer; text-decoration:none; transition:color 0.2s,border-color 0.2s,background 0.2s;
-              backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+              cursor:pointer; text-decoration:none; transition:color 0.2s,border-color 0.2s,background 0.2s; }
   .mat-item:hover,.mat-item.cur { color:var(--accent); border-color:var(--accent); }
 
   /* Подложка контента — параметры из CONFIG.panel. По умолчанию: вуаль без рамки. */
@@ -76,7 +75,7 @@ const CONFIG = {
   // ── Подложка контента (как текст лежит на небе) ───────────────────────
   panel: {
     opacity:   0.42,   // непрозрачность вуали: 0 = текст прямо на звёздах, 1 = плотная коробка
-    blur:      0,      // размытие неба под текстом, px (0 = без размытия)
+    blur:      8,      // размытие неба под текстом, px (0 = без размытия)
     softEdges: true,   // true = края дымки тают в небо (без рамки); false = ровная вуаль
     tint:      "10,18,32", // цвет вуали, R,G,B (тёмно-синий «космос»)
     pad:       24,     // внутренний отступ текста, px
@@ -116,7 +115,7 @@ const CONFIG = {
     offset:     "5rem 0.8rem", // отступ от края окна: «сверху/снизу  справа/слева» (меню прилипло к экрану)
     fontSize:   "0.72rem",
     padding:    "0.5rem 0.9rem",
-    bg:         "rgba(0,0,0,0.5)",   // фон кнопок
+    bg:         "rgba(0,0,0,0.72)",   // фон кнопок
     border:     "1px solid rgba(255,255,255,0.08)",
     color:      "#555",        // цвет неактивной кнопки
   },
@@ -294,3 +293,4 @@ function renderMarkdown(md){
 </script>
 </body>
 </html>
+
