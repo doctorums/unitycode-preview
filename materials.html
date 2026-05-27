@@ -49,7 +49,6 @@
   #reader table { border-collapse:collapse; width:100%; margin:1rem 0; font-size:0.78rem; }
   #reader td,#reader th { border:1px solid var(--border); padding:0.5rem 0.7rem; text-align:left; }
   #reader hr { border:none; border-top:1px solid var(--border); margin:1.5rem 0; }
-  .intro { margin-top:1rem; max-width:520px; }
 </style>
 </head>
 <body>
@@ -68,9 +67,6 @@
 
 <main>
   <div class="mat-menu" id="menu"></div>
-  <h1>Материалы</h1>
-  <p class="lead">Тексты, теория и устройство проекта.</p>
-  <div class="intro" id="intro"></div>
   <div id="reader"><div id="readerBody"></div></div>
 </main>
 
@@ -93,7 +89,6 @@
   const menu = document.getElementById('menu');
   const reader = document.getElementById('reader');
   const readerBody = document.getElementById('readerBody');
-  const intro = document.getElementById('intro');
 
   // строим компактное меню
   MATERIALS.forEach(m => {
@@ -112,7 +107,6 @@
   async function openReader(m){
     markCurrent(m.id);
     try { localStorage.setItem(LAST_KEY, m.id); } catch(e){}
-    intro.style.display = 'none';
     reader.classList.add('show');
     readerBody.innerHTML = '<p style="color:var(--dim)">Загрузка…</p>';
     try {
@@ -123,16 +117,11 @@
     }
   }
 
-  // первый заход — обзор; повторный — последний просмотренный материал
+  // первый заход — только небо и меню; повторный — последний просмотренный материал
   (function initLast(){
     let last=null; try{ last=localStorage.getItem(LAST_KEY); }catch(e){}
     const m = MATERIALS.find(x => x.id===last && x.type==='reader');
-    if (m) { openReader(m); }
-    else {
-      intro.innerHTML = '<p style="color:var(--dim);font-size:0.85rem;line-height:1.7">'
-        +'Выбери материал в меню справа. «Книга» — теория проекта, «Как форкнуть» — '
-        +'устройство и правила, «Форкнуть» — сделать свой узел.</p>';
-    }
+    if (m) openReader(m);
   })();
 
   // ── лёгкий markdown → HTML ──────────────────────────────────────────────
