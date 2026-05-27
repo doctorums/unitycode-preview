@@ -75,10 +75,10 @@ const CONFIG = {
 
   // ── Подложка контента (как текст лежит на небе) ───────────────────────
   panel: {
-    opacity:   1,   // непрозрачность вуали: 0 = текст прямо на звёздах, 1 = плотная коробка
+    opacity:   0.42,   // непрозрачность вуали: 0 = текст прямо на звёздах, 1 = плотная коробка
     blur:      8,      // размытие неба под текстом, px (0 = без размытия)
     softEdges: true,   // true = края дымки тают в небо (без рамки); false = ровная вуаль
-    tint:      "30,42,66", // цвет вуали, R,G,B (тёмно-синий «космос»)
+    tint:      "10,18,32", // цвет вуали, R,G,B (тёмно-синий «космос»)
     pad:       24,     // внутренний отступ текста, px
     radius:    6,      // скругление углов, px (при softEdges почти не виден)
   },
@@ -177,13 +177,28 @@ CONFIG.materials.forEach(m=>{
   el.className='mat-item'; el.dataset.id=m.id; el.textContent=m.title;
   if(m.type==='link') el.href=href;
   if(m.type==='ext'){ el.href=href; el.target='_blank'; el.rel='noopener'; }
-  if(m.type==='reader') el.onclick=()=>openReader(m);
+  if(m.type==='reader') el.onclick=()=>toggleReader(m);
   document.getElementById('menu').appendChild(el);
 });
 function markCurrent(id){ document.querySelectorAll('.mat-item').forEach(b=>b.classList.toggle('cur',b.dataset.id===id)); }
 
+let openId=null;  // какой материал сейчас раскрыт
+
+function closeReader(){
+  reader.classList.remove('show');
+  markCurrent(null);
+  openId=null;
+  try{ localStorage.removeItem(LAST_KEY); }catch(e){}
+}
+
+function toggleReader(m){
+  if(openId===m.id){ closeReader(); }   // уже открыт — свернуть, не перезагружая
+  else { openReader(m); }
+}
+
 async function openReader(m){
   markCurrent(m.id);
+  openId=m.id;
   try{ localStorage.setItem(LAST_KEY,m.id); }catch(e){}
   reader.classList.add('show');
   readerBody.innerHTML='<p style="color:#9aa">Загрузка…</p>';
