@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ru"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="core.css">
+</head><body>
+<main>
+  <h1 id="heading"></h1>
+
+  <!-- Лента диалога -->
+  <div id="log" style="margin-bottom:1.5rem"></div>
+
+  <textarea id="input" rows="4"></textarea>
+  <div style="display:flex;gap:1rem;margin-top:1rem;flex-wrap:wrap">
+    <button id="send"></button>
+    <span id="mode" class="uc-mono uc-muted" style="align-self:center;font-size:.66rem"></span>
+  </div>
+
+  <!-- Поле ключа: появляется только в режиме BYOK -->
+  <div id="byokBox" style="display:none;margin-top:1.5rem;border:1px solid var(--danger);padding:1rem">
+    <p class="uc-mono uc-warn" style="font-size:.7rem;margin:0 0 .8rem">
+      Режим «свой ключ». Ключ хранится только в твоём браузере и идёт напрямую в API за твой счёт.
+      Это твой осознанный выбор. Никогда не вставляй сюда чужой ключ.
+    </p>
+    <input id="apikey" type="password" placeholder="sk-ant-...">
+  </div>
+</main>
+<script src="portal.config.js"></script>
+<script src="core.js"></script>
+<script>
+  UC.mountField(); UC.mountNav("mirror"); UC.mountFooter();
+  const C = UC.config, M = C.mirror, mode = C.backend.mirrorMode;
+  heading.textContent = M.heading;
+  input.placeholder = M.placeholder;
+  send.textContent = M.button;
+  document.getElementById("mode").textContent = "режим: " + mode;
+  if (mode === "byok") byokBox.style.display = "block";
+
+  let demoIdx = 0;
+  function addLine(who, text){
+    const d=document.createElement("div");
+    d.className="uc-card";
+    d.innerHTML=`<div class="uc-mono uc-muted" style="font-size:.62rem;margin-bottom:.5rem">${who}</div>${text}`;
+    log.appendChild(d); d.scrollIntoView({behavior:"smooth",block:"end"});
+  }
+
+  async function reply(noise){
+    // DEMO — встроенные ответы, без затрат
+    if (mode === "demo") {
+      return M.demoReplies[demoIdx++ % M.demoReplies.length];
+    }
+    // WORKER — ключ спрятан на сервере (правильный путь)
+    if (mode === "worker") {
+      const r = await fetch(C.backend.workerUrl, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ system: M.systemPrompt, message: noise })
+      });
+      const j = await r.json();
+      return j.reply || "(пустой ответ узла)";
+    }
+    // BYOK — ключ пользователя, прямой вызов, его счёт
+    if (mode === "byok") {
+      const key = apikey.value.trim();
+      if (!key) return "Вставь свой ключ выше — или переключи портал в демо-режим.";
+      const r = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{"Content-Type":"application/json","x-api-key":key,
+                 "anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        body: JSON.stringify({ model:"claude-3-5-haiku-20241022", max_tokens:300,
+          system: M.systemPrompt, messages:[{role:"user",content:noise}] })
+      });
+      const j = await r.json();
+      return j?.content?.[0]?.text || "(узел не ответил)";
+    }
+  }
+
+  send.addEventListener("click", async ()=>{
+    const noise = input.value.trim(); if(!noise) return;
+    addLine("сигнал", noise); input.value=""; send.disabled=true;
+    try { addLine("узел", await reply(noise)); }
+    catch(e){ addLine("узел", "сбой связи: " + e.message); }
+    send.disabled=false;
+    // TODO: при заданном Supabase — сохранить узел в таблицу nodes (raw_noise, ai_interpretation)
+  });
+</script>
+</body></html>
