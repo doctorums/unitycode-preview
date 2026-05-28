@@ -111,7 +111,7 @@ const CONFIG = {
 
   // ── Галактики (type: "spiral" | "globular") ───────────────────────────
   galaxies: [
-    { on:true, type:"spiral",   xPct:78, yPct:18, sizePct:14, angle:0.4, hue:"180,160", arms:3, bright:0.6},
+    { on:true, type:"spiral",   xPct:78, yPct:18, sizePct:14, angle:0.4, hue:"180,160", arms:3, bright:0.6, tilt:0.35, lean:-0.6 },
     { on:true, type:"globular", xPct:20, yPct:82, sizePct:9,  angle:2.1, hue:"210,180",         bright:0.5 },
   ],
 
@@ -139,7 +139,7 @@ const CONFIG = {
     color:     "150,170,210",  // цвет планеты, R,G,B
     maxSize:   38,      // макс. радиус в центре экрана, px
     depth:     0.42,    // как глубоко заходит к центру по X (0..1; 0.5 = ровно центр)
-    speed:     0.4,     // скорость (1 = базовая; меньше = медленнее)
+    speed:     0.6,     // скорость (1 = базовая; меньше = медленнее)
     minDelay:  6,       // мин. пауза между пролётами, сек
     maxDelay:  14,      // макс. пауза, сек
     ring:      true,    // кольцо вокруг планеты (как у Сатурна)
@@ -697,7 +697,8 @@ function renderMarkdown(md){
     gals=CONFIG.galaxies.filter(g=>g.on).map(g=>{
       const G={ type:g.type||'spiral', x:W*g.xPct/100, y:H*g.yPct/100,
         s:W*g.sizePct/100, ang:g.angle||0, hue:g.hue.split(',').map(Number), arms:g.arms||2,
-        bright:(g.bright==null?1:g.bright), pts:[] };
+        bright:(g.bright==null?1:g.bright),
+        tilt:(g.tilt==null?0.45:g.tilt), lean:(g.lean||0), pts:[] };
       if(G.type==='globular'){
         // шаровое скопление: звёзды густо к центру (степенное распределение)
         const N=260;
@@ -728,8 +729,9 @@ function renderMarkdown(md){
     gg.addColorStop(0.4,'rgba('+H0+','+H1+',255,'+(0.03*B)+')');
     gg.addColorStop(1,'rgba(0,0,40,0)');
     ctx.fillStyle=gg; ctx.beginPath();
-    const squash = g.type==='globular' ? 0.88 : 0.42;
-    ctx.ellipse(g.x,g.y,g.s,g.s*squash,g.ang+t*0.01,0,Math.PI*2); ctx.fill();
+    const squash = g.type==='globular' ? 0.88 : (1 - g.tilt*0.78);
+    const haloAng = g.type==='globular' ? g.ang+t*0.01 : g.lean;
+    ctx.ellipse(g.x,g.y,g.s,g.s*squash,haloAng,0,Math.PI*2); ctx.fill();
     // яркое ядро
     const core=ctx.createRadialGradient(g.x,g.y,0,g.x,g.y,g.s*0.22);
     core.addColorStop(0,'rgba(255,255,255,'+Math.min(1,0.5*B)+')');
@@ -745,11 +747,16 @@ function renderMarkdown(md){
         ctx.fillRect(px,py,p.sz,p.sz);
       }
     } else {
+      // спиральное: точки в плоскости диска → наклон (squash) → поворот (lean)
+      const cl=Math.cos(g.lean), sl=Math.sin(g.lean), sq=1-g.tilt*0.78;
       for(const p of g.pts){
         const a=rot + p.arm*(Math.PI*2/g.arms) + p.f*Math.PI*2.4;
         const r=g.s*(0.05+p.f*0.85);
-        const px=g.x + Math.cos(a)*r + Math.sin(a)*p.j*g.s;
-        const py=g.y + (Math.sin(a)*r + Math.cos(a)*p.j*g.s)*0.45;
+        let dx=Math.cos(a)*r + Math.sin(a)*p.j*g.s;   // координаты в плоскости диска
+        let dy=Math.sin(a)*r + Math.cos(a)*p.j*g.s;
+        dy*=sq;                                        // наклон: сжатие вдоль оси
+        const px=g.x + dx*cl - dy*sl;                  // поворот наклона
+        const py=g.y + dx*sl + dy*cl;
         if(p.b<0.04) continue;
         ctx.fillStyle='rgba('+H0+','+H1+',255,'+(p.b*0.18*B).toFixed(3)+')';
         ctx.fillRect(px,py,p.sz,p.sz);
