@@ -111,7 +111,7 @@ const CONFIG = {
 
   // ── Галактики (type: "spiral" | "globular") ───────────────────────────
   galaxies: [
-    { on:true, type:"spiral",   xPct:78, yPct:18, sizePct:14, angle:0.4, hue:"180,160", arms:3, bright:0.6, tilt:0.60, lean:-0.6 },
+    { on:true, type:"spiral",   xPct:78, yPct:18, sizePct:14, angle:0.4, hue:"180,160", arms:3, bright:0.6, tilt:0.62, lean:-0.6 },
     { on:true, type:"globular", xPct:20, yPct:82, sizePct:9,  angle:2.1, hue:"210,180",         bright:0.5 },
   ],
 
@@ -729,7 +729,7 @@ function renderMarkdown(md){
     gg.addColorStop(0.4,'rgba('+H0+','+H1+',255,'+(0.03*B)+')');
     gg.addColorStop(1,'rgba(0,0,40,0)');
     ctx.fillStyle=gg; ctx.beginPath();
-    const squash = g.type==='globular' ? 0.88 : (1 - g.tilt*0.78);
+    const squash = g.type==='globular' ? 0.88 : (1 - g.tilt*0.95);
     const haloAng = g.type==='globular' ? g.ang+t*0.01 : g.lean;
     ctx.ellipse(g.x,g.y,g.s,g.s*squash,haloAng,0,Math.PI*2); ctx.fill();
     // яркое ядро
@@ -748,7 +748,7 @@ function renderMarkdown(md){
       }
     } else {
       // спиральное: точки в плоскости диска → наклон (squash) → поворот (lean)
-      const cl=Math.cos(g.lean), sl=Math.sin(g.lean), sq=1-g.tilt*0.78;
+      const cl=Math.cos(g.lean), sl=Math.sin(g.lean), sq=1-g.tilt*0.95;
       for(const p of g.pts){
         const a=rot + p.arm*(Math.PI*2/g.arms) + p.f*Math.PI*2.4;
         const r=g.s*(0.05+p.f*0.85);
