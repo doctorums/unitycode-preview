@@ -463,6 +463,14 @@ function renderMarkdown(md){
       const tx=W/2 + n.wx*W*scale*1.6;
       const ty=H/2 + (n.wy*H + Math.sin(t*0.5+n.ph)*(NS.sway||6))*scale*1.6;
       n.tx=tx; n.ty=ty; n.sz=sz;   // экранные координаты для корабля
+      // гравитация планеты: ближайший шум подтягивается к ней
+      if(lastObj.sz>0 && !n.captured){
+        const gx=lastObj.px-tx, gy=lastObj.py-ty, gd=Math.hypot(gx,gy)||1;
+        if(gd < lastObj.sz*6){                       // в зоне притяжения
+          const pull=(1 - gd/(lastObj.sz*6))*0.0009; // тем сильнее, чем ближе
+          n.wx += gx/gd*pull; n.wy += gy/gd*pull;
+        }
+      }
       // ушёл далеко за край — убрать
       if(tx<-W*0.6||tx>W*1.6||ty<-H*0.6||ty>H*1.6){ noises.splice(i,1); setTimeout(spawnNoise,rnd(3,6)*1000); continue; }
       const alpha=Math.min(1, scale*1.4) * (n.z>1.0?(1.25-n.z)/0.25:1);
