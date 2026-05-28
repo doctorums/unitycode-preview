@@ -187,7 +187,7 @@ const CONFIG = {
   ship: {
     on:       true,
     color:    "180,210,255",  // цвет корпуса/свечения, R,G,B
-    size:     16,             // размер силуэта, px
+    size:     20,             // размер силуэта, px
     speed:    2.2,            // скорость полёта
     hideMin:  5,              // мин. пауза в укрытии (у меню), сек
     hideMax:  12,             // макс. пауза, сек
@@ -582,20 +582,21 @@ function renderMarkdown(md){
       } else {
         const tx=ship.target.tx, ty=ship.target.ty;
         const dx=tx-ship.x, dy=ty-ship.y, d=Math.hypot(dx,dy)||1;
-        // базовое направление к цели + перпендикулярное покачивание (изгиб)
         const nx=dx/d, ny=dy/d;
         ship.wob+=0.06;
-        const curve=Math.sin(ship.wob)*0.5;        // сила изгиба
-        const mx=nx - ny*curve, my=ny + nx*curve;   // повёрнутый вектор
+        const curve=Math.sin(ship.wob)*0.5;
+        const mx=nx - ny*curve, my=ny + nx*curve;
         const ml=Math.hypot(mx,my)||1;
         ship.angle=Math.atan2(my,mx);
-        ship.x+=mx/ml*spd*2; ship.y+=my/ml*spd*2;
-        if(d < (ship.target.sz*0.5 + S)){ // долетел — глотаем
+        const grab=ship.target.sz*1.4 + S*2.5;     // дистанция захвата — побольше, чтобы луч был виден
+        const slow=d < grab*2.2 ? 0.4 : 1;          // притормаживает на подлёте
+        ship.x+=mx/ml*spd*2*slow; ship.y+=my/ml*spd*2*slow;
+        if(d < grab){ // в зоне захвата — включаем луч
           ship.state='swallow'; ship.captured=ship.target; ship.target.captured=true; ship.swp=0;
         }
       }
     } else if(ship.state==='swallow'){
-      ship.swp+=0.02;
+      ship.swp+=0.012;
       const n=ship.captured;
       if(n){ // шум стягивается к носу корабля
         const nx=ship.x+Math.cos(ship.angle)*S, ny=ship.y+Math.sin(ship.angle)*S;
@@ -614,40 +615,72 @@ function renderMarkdown(md){
       if(d<8){ ship=null; shipHideUntil=now+rnd(SH.hideMin||5,SH.hideMax||12); return; }
     }
 
-    // крен: разница между текущим и прошлым углом → наклон корпуса
-    let da=ship.angle-ship.prevAngle;
-    while(da>Math.PI) da-=Math.PI*2; while(da<-Math.PI) da+=Math.PI*2;
-    ship.roll += (Math.max(-1,Math.min(1,da*8)) - ship.roll)*0.1;  // плавно
-    ship.prevAngle=ship.angle;
-
-    // луч-захват в момент заглатывания (рисуем в мировых координатах, до корпуса)
+    // луч-захват — яркий пульсирующий конус от носа к шуму
     if(ship.state==='swallow' && ship.captured){
-      const nx=ship.x+Math.cos(ship.angle)*S, ny=ship.y+Math.sin(ship.angle)*S;
+      const nx=ship.x+Math.cos(ship.angle)*S*1.6, ny=ship.y+Math.sin(ship.angle)*S*1.6;
       const n=ship.captured;
+      const ang=Math.atan2(n.ty-ny,n.tx-nx);
+      const pulse=0.5+0.5*Math.sin(performance.now()/90);
+      const spread=12+14*Math.sin(ship.swp*Math.PI);
+      // широкое мягкое свечение луча
       const beam=ctx.createLinearGradient(nx,ny,n.tx,n.ty);
-      beam.addColorStop(0,'rgba('+C+',0.55)');
+      beam.addColorStop(0,'rgba('+C+','+(0.7*pulse+0.25)+')');
       beam.addColorStop(1,'rgba('+C+',0.05)');
-      const ang=Math.atan2(n.ty-ny,n.tx-nx), spread=10+10*Math.sin(ship.swp*Math.PI);
       ctx.beginPath();
-      ctx.moveTo(nx,ny);
-      ctx.lineTo(n.tx+Math.cos(ang+Math.PI/2)*spread, n.ty+Math.sin(ang+Math.PI/2)*spread);
+      ctx.moveTo(nx+Math.cos(ang+Math.PI/2)*4, ny+Math.sin(ang+Math.PI/2)*4);
+      ctx.lineTo(nx+Math.cos(ang-Math.PI/2)*4, ny+Math.sin(ang-Math.PI/2)*4);
       ctx.lineTo(n.tx+Math.cos(ang-Math.PI/2)*spread, n.ty+Math.sin(ang-Math.PI/2)*spread);
+      ctx.lineTo(n.tx+Math.cos(ang+Math.PI/2)*spread, n.ty+Math.sin(ang+Math.PI/2)*spread);
       ctx.closePath(); ctx.fillStyle=beam; ctx.fill();
+      // яркая осевая линия луча
+      ctx.beginPath(); ctx.moveTo(nx,ny); ctx.lineTo(n.tx,n.ty);
+      ctx.strokeStyle='rgba(255,255,255,'+(0.5*pulse+0.2)+')'; ctx.lineWidth=1.5; ctx.stroke();
+      // точка захвата мерцает на шуме
+      ctx.fillStyle='rgba(255,255,255,'+(0.6*pulse)+')';
+      ctx.beginPath(); ctx.arc(n.tx,n.ty,3*pulse+1,0,Math.PI*2); ctx.fill();
     }
 
-    // рисуем силуэт: узкая стрелка + огонёк двигателя, с креном
+    // крен: разница углов → наклон
+    let da=ship.angle-ship.prevAngle;
+    while(da>Math.PI) da-=Math.PI*2; while(da<-Math.PI) da+=Math.PI*2;
+    ship.roll += (Math.max(-1,Math.min(1,da*9)) - ship.roll)*0.12;
+    ship.prevAngle=ship.angle;
+
+    // ── ИСТРЕБИТЕЛЬ ──
     ctx.save(); ctx.translate(ship.x,ship.y); ctx.rotate(ship.angle);
-    ctx.scale(1, 1-Math.abs(ship.roll)*0.55);   // крен — сжатие по вертикали (наклон к зрителю)
-    // свечение двигателя
-    const fl=ctx.createRadialGradient(-S*0.9,0,0,-S*0.9,0,S*0.8);
-    fl.addColorStop(0,'rgba('+C+',0.8)'); fl.addColorStop(1,'rgba('+C+',0)');
-    ctx.fillStyle=fl; ctx.beginPath(); ctx.arc(-S*0.9,0,S*0.8,0,Math.PI*2); ctx.fill();
-    // корпус
+    ctx.scale(1, 1-Math.abs(ship.roll)*0.5);   // крен
+    const W1='rgba(255,255,255,0.85)';
+    // тёплое пламя дюз (двойное, пульсирующее)
+    const fp=0.6+0.4*Math.sin(performance.now()/55);
+    for(const dy of [-S*0.32, S*0.32]){
+      const fg=ctx.createLinearGradient(-S*0.8,dy,-S*1.9*fp,dy);
+      fg.addColorStop(0,'rgba(255,210,120,0.95)');
+      fg.addColorStop(0.5,'rgba(255,140,50,0.7)');
+      fg.addColorStop(1,'rgba(255,80,30,0)');
+      ctx.fillStyle=fg; ctx.beginPath();
+      ctx.moveTo(-S*0.7,dy-S*0.16); ctx.lineTo(-S*1.9*fp,dy); ctx.lineTo(-S*0.7,dy+S*0.16);
+      ctx.closePath(); ctx.fill();
+    }
+    // крылья (разнесённые плоскости)
+    ctx.fillStyle='rgba('+C+',0.55)'; ctx.strokeStyle=W1; ctx.lineWidth=0.8;
     ctx.beginPath();
-    ctx.moveTo(S,0); ctx.lineTo(-S*0.6,S*0.5); ctx.lineTo(-S*0.3,0); ctx.lineTo(-S*0.6,-S*0.5);
-    ctx.closePath();
-    ctx.fillStyle='rgba('+C+',0.92)'; ctx.fill();
-    ctx.strokeStyle='rgba(255,255,255,0.7)'; ctx.lineWidth=0.8; ctx.stroke();
+    ctx.moveTo(-S*0.2,0); ctx.lineTo(-S*0.8,-S*0.95); ctx.lineTo(-S*0.95,-S*0.9); ctx.lineTo(-S*0.45,0);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-S*0.2,0); ctx.lineTo(-S*0.8,S*0.95); ctx.lineTo(-S*0.95,S*0.9); ctx.lineTo(-S*0.45,0);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // фюзеляж (вытянутый корпус)
+    const body=ctx.createLinearGradient(0,-S*0.35,0,S*0.35);
+    body.addColorStop(0,'rgba('+C+',0.95)');
+    body.addColorStop(0.5,'rgba(255,255,255,0.95)');
+    body.addColorStop(1,'rgba('+C+',0.7)');
+    ctx.fillStyle=body; ctx.beginPath();
+    ctx.moveTo(S*1.5,0); ctx.lineTo(-S*0.5,S*0.32); ctx.lineTo(-S*0.7,0); ctx.lineTo(-S*0.5,-S*0.32);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle=W1; ctx.lineWidth=0.9; ctx.stroke();
+    // кабина-блик
+    ctx.fillStyle='rgba(140,200,255,0.95)';
+    ctx.beginPath(); ctx.ellipse(S*0.35,0,S*0.32,S*0.16,0,0,Math.PI*2); ctx.fill();
     ctx.restore();
   }
 
