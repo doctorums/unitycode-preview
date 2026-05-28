@@ -156,6 +156,18 @@ const CONFIG = {
   //   link = страница сайта | reader = показать md тут | ext = внешняя ссылка
   materials: [
     { id:"book", type:"link",   title:"Книга",        href:"kniga.html" },
+    { id:"new",  type:"reader", title:"С чего начать", text:
+"## Хочешь свой узел сети?\n\n"+
+"Каждый портал UnityCode — это живой узел. Их может быть много, и все они — часть одной растущей сети. Ты можешь зажечь свой.\n\n"+
+"«Форкнуть» — значит сделать собственную копию этого мира. Она станет твоей: меняй тексты, цвета, небо, наполняй своим смыслом. Никто не владеет сетью — у каждого свой голос в ней.\n\n"+
+"### Что для этого нужно\n\n"+
+"Бесплатный аккаунт на **GitHub** — это место, где живёт код порталов. Если его нет, регистрация займёт минуту.\n\n"+
+"### Три шага\n\n"+
+"- Нажми **Форкнуть** — у тебя появится своя копия портала.\n"+
+"- Поменяй в ней что захочешь: название, тексты, краски неба.\n"+
+"- Опубликуй — и твой узел засветится в сети.\n\n"+
+"Не бойся сломать — это твоя песочница. Хочешь глубже разобраться, что можно менять, а что лучше не трогать — открой **«Как форкнуть»**.\n\n"+
+"Добро пожаловать. Сеть ждёт твою частоту." },
     { id:"fork", type:"reader", title:"Как форкнуть", src:"FORK.md" },
     { id:"repo", type:"ext",    title:"Форкнуть",     href:"@repo" }, // @repo = CONFIG.repoUrl
   ],
@@ -226,6 +238,7 @@ async function openReader(m){
   openId=m.id;
   try{ localStorage.setItem(LAST_KEY,m.id); }catch(e){}
   reader.classList.add('show');
+  if(m.text){ readerBody.innerHTML=renderMarkdown(m.text); return; }  // встроенный текст
   readerBody.innerHTML='<p style="color:#9aa">Загрузка…</p>';
   try{ const res=await fetch(m.src); if(!res.ok)throw 0; readerBody.innerHTML=renderMarkdown(await res.text()); }
   catch(e){ readerBody.innerHTML='<p style="color:#9aa">Не удалось загрузить '+m.src+'. Открой файл в репозитории напрямую.</p>'; }
