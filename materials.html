@@ -553,7 +553,7 @@ function renderMarkdown(md){
       case 2: sx=rnd(0,W); sy=H+40; break;      // снизу
       default:sx=-40;      sy=rnd(0,H); break;   // слева
     }
-    ship={ state:'hunt', x:sx, y:sy, angle:0, target:null, swp:0, wob:Math.random()*7 };
+    ship={ state:'hunt', x:sx, y:sy, angle:0, prevAngle:0, roll:0, target:null, swp:0, wob:Math.random()*7 };
   }
   function pickTarget(){
     // выбирает крупнейший доступный шум (потом — выбор агента)
@@ -614,8 +614,30 @@ function renderMarkdown(md){
       if(d<8){ ship=null; shipHideUntil=now+rnd(SH.hideMin||5,SH.hideMax||12); return; }
     }
 
-    // рисуем силуэт: узкая стрелка + огонёк двигателя
+    // крен: разница между текущим и прошлым углом → наклон корпуса
+    let da=ship.angle-ship.prevAngle;
+    while(da>Math.PI) da-=Math.PI*2; while(da<-Math.PI) da+=Math.PI*2;
+    ship.roll += (Math.max(-1,Math.min(1,da*8)) - ship.roll)*0.1;  // плавно
+    ship.prevAngle=ship.angle;
+
+    // луч-захват в момент заглатывания (рисуем в мировых координатах, до корпуса)
+    if(ship.state==='swallow' && ship.captured){
+      const nx=ship.x+Math.cos(ship.angle)*S, ny=ship.y+Math.sin(ship.angle)*S;
+      const n=ship.captured;
+      const beam=ctx.createLinearGradient(nx,ny,n.tx,n.ty);
+      beam.addColorStop(0,'rgba('+C+',0.55)');
+      beam.addColorStop(1,'rgba('+C+',0.05)');
+      const ang=Math.atan2(n.ty-ny,n.tx-nx), spread=10+10*Math.sin(ship.swp*Math.PI);
+      ctx.beginPath();
+      ctx.moveTo(nx,ny);
+      ctx.lineTo(n.tx+Math.cos(ang+Math.PI/2)*spread, n.ty+Math.sin(ang+Math.PI/2)*spread);
+      ctx.lineTo(n.tx+Math.cos(ang-Math.PI/2)*spread, n.ty+Math.sin(ang-Math.PI/2)*spread);
+      ctx.closePath(); ctx.fillStyle=beam; ctx.fill();
+    }
+
+    // рисуем силуэт: узкая стрелка + огонёк двигателя, с креном
     ctx.save(); ctx.translate(ship.x,ship.y); ctx.rotate(ship.angle);
+    ctx.scale(1, 1-Math.abs(ship.roll)*0.55);   // крен — сжатие по вертикали (наклон к зрителю)
     // свечение двигателя
     const fl=ctx.createRadialGradient(-S*0.9,0,0,-S*0.9,0,S*0.8);
     fl.addColorStop(0,'rgba('+C+',0.8)'); fl.addColorStop(1,'rgba('+C+',0)');
