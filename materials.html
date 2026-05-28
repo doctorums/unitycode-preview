@@ -374,6 +374,14 @@ function renderMarkdown(md){
 
   // ── ШУМ ТРЕТЬЕГО АГЕНТА (режим покоя) ──────────────────────────────────
   const NS=CONFIG.noise||{on:false};
+  // источник фраз: пробуем внешний файл noises.json, иначе — список из CONFIG
+  (async ()=>{
+    try{
+      const r=await fetch('noises.json'); if(!r.ok) return;
+      const arr=await r.json();
+      if(Array.isArray(arr) && arr.length) NS.items=arr;
+    }catch(e){ /* остаётся список из CONFIG */ }
+  })();
   let noises=[];         // активные шумы (до maxOnscreen)
   let noiseHidden=false;
   window.__noiseHide=(v)=>{ noiseHidden=v; };
