@@ -15,7 +15,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>UNITYCODE — Материя</title>
-<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Unbounded:wght@200;400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Unbounded:wght@200;400;700&family=Caveat:wght@500&family=Marck+Script&family=Pacifico&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared.css">
 <style>
   html,body { height:100%; }
@@ -139,7 +139,7 @@ const CONFIG = {
     color:     "150,170,210",  // цвет планеты, R,G,B
     maxSize:   38,      // макс. радиус в центре экрана, px
     depth:     0.42,    // как глубоко заходит к центру по X (0..1; 0.5 = ровно центр)
-    speed:     0.6,     // скорость (1 = базовая; меньше = медленнее)
+    speed:     0.4,     // скорость (1 = базовая; меньше = медленнее)
     minDelay:  6,       // мин. пауза между пролётами, сек
     maxDelay:  14,      // макс. пауза, сек
     ring:      true,    // кольцо вокруг планеты (как у Сатурна)
@@ -162,6 +162,16 @@ const CONFIG = {
     drift:     0.15,           // скорость дрейфа
     sway:      6,              // амплитуда колыхания, px
     respawn:   2.5,            // пауза перед появлением нового после разрушения, сек
+    // набор шрифтов — каждый шум получает случайный (разные «голоса»)
+    fonts: [
+      "'Cormorant Garamond', Georgia, serif",
+      "'Caveat', cursive",
+      "'Marck Script', cursive",
+      "'Pacifico', cursive",
+      "Verdana, sans-serif",
+      "'Share Tech Mono', monospace",
+      "Georgia, serif",
+    ],
     // weight = «вес» шума: влияет на размер (кегль). Больше вес — крупнее и
     // устойчивее (мелкие объекты прошивают его, не разрушая).
     items: [
@@ -403,26 +413,28 @@ function renderMarkdown(md){
       text:it.text, base:it.weight||28,
       wx:rnd(-0.5,0.5), wy:rnd(-0.4,0.4),
       vx:rnd(-0.0003,0.0003), vy:rnd(-0.00025,0.00025),
-      z:0, vz:0, ph:Math.random()*7, parts:null
+      z:0, vz:0, ph:Math.random()*7, parts:null,
+      font:(NS.fonts&&NS.fonts.length)?NS.fonts[Math.floor(Math.random()*NS.fonts.length)]:"'Cormorant Garamond', Georgia, serif"
     };
     if(mode<0.45){            // уходит вдаль в точку
-      n.z=rnd(0.6,1.0); n.vz=rnd(0.0007,0.0018);
+      n.z=rnd(0.6,1.0); n.vz=rnd(0.0004,0.001);
     } else if(mode<0.8){      // выплывает из глубины к зрителю
-      n.z=rnd(0.7,1.1); n.vz=-rnd(0.0007,0.0016);
+      n.z=rnd(0.7,1.1); n.vz=-rnd(0.0004,0.0009);
     } else {                  // пролёт мимо камеры
-      n.z=rnd(0.2,0.45); n.vz=-rnd(0.002,0.004);
+      n.z=rnd(0.2,0.45); n.vz=-rnd(0.0012,0.0024);
       n.vx=rnd(-0.0009,0.0009); n.vy=rnd(-0.0007,0.0007);
     }
     noises.push(n);
   }
 
   function explodeNoise(n, tx, ty, sz){
-    ctx.font=sz+"px 'Cormorant Garamond', Georgia, serif";
+    const fnt=n.font||"'Cormorant Garamond', Georgia, serif";
+    ctx.font=sz+"px "+fnt;
     const chars=n.text.split('');
     let ox=tx - ctx.measureText(n.text).width/2;
     n.parts=chars.map(ch=>{
       const w=ctx.measureText(ch).width, cxp=ox+w/2; ox+=w;
-      return { ch, x:cxp, y:ty, sz, vx:(Math.random()-0.5)*3.5, vy:(Math.random()-0.5)*3.5-0.5,
+      return { ch, x:cxp, y:ty, sz, font:fnt, vx:(Math.random()-0.5)*3.5, vy:(Math.random()-0.5)*3.5-0.5,
                rot:0, vr:(Math.random()-0.5)*0.25, a:1 };
     });
   }
@@ -439,9 +451,9 @@ function renderMarkdown(md){
         ctx.textAlign='center'; ctx.textBaseline='middle';
         for(const p of n.parts){
           if(p.a<=0) continue; alive=true;
-          p.x+=p.vx; p.y+=p.vy; p.vy+=0.04; p.rot+=p.vr; p.a-=0.014;
+          p.x+=p.vx; p.y+=p.vy; p.vy+=0.04; p.rot+=p.vr; p.a-=0.008;
           ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot);
-          ctx.font=p.sz+"px 'Cormorant Garamond', Georgia, serif";
+          ctx.font=p.sz+"px "+(p.font||"'Cormorant Garamond', Georgia, serif");
           ctx.fillStyle='rgba('+C+','+Math.max(0,p.a).toFixed(3)+')';
           ctx.fillText(p.ch,0,0); ctx.restore();
         }
@@ -452,15 +464,15 @@ function renderMarkdown(md){
       // движение в объёме
       n.wx+=n.vx; n.wy+=n.vy; n.z+=n.vz;
       // вышел за пределы глубины — исчез, родится новый
-      if(n.z>1.25 || n.z<0.06){ noises.splice(i,1); setTimeout(spawnNoise,rnd(3.5,7)*1000); continue; }
+      if(n.z>1.25 || n.z<0.06){ noises.splice(i,1); setTimeout(spawnNoise,rnd(5,9)*1000); continue; }
       const scale=FOV/(n.z+FOV);            // перспектива: ближе z → крупнее
-      let sz=n.base*scale*3.2;
+      let sz=n.base*scale*2.4;
       // захваченный кораблём — координаты ведёт корабль, текст сжимается
       if(n.captured){
         sz*=(n._shrink==null?1:n._shrink);
         const al2=(n._shrink==null?1:n._shrink);
         if(sz>0.5){
-          ctx.font=sz+"px 'Cormorant Garamond', Georgia, serif";
+          ctx.font=sz+"px "+(n.font||"'Cormorant Garamond', Georgia, serif");
           ctx.textAlign='center'; ctx.textBaseline='middle';
           ctx.fillStyle='rgba('+C+','+(0.9*al2).toFixed(3)+')';
           ctx.fillText(n.text,n.tx,n.ty);
@@ -474,15 +486,15 @@ function renderMarkdown(md){
       // гравитация планеты: ближайший шум подтягивается к ней
       if(lastObj.sz>0 && !n.captured){
         const gx=lastObj.px-tx, gy=lastObj.py-ty, gd=Math.hypot(gx,gy)||1;
-        if(gd < lastObj.sz*6){                       // в зоне притяжения
-          const pull=(1 - gd/(lastObj.sz*6))*0.0009; // тем сильнее, чем ближе
+        if(gd < lastObj.sz*9){                       // в зоне притяжения
+          const pull=(1 - gd/(lastObj.sz*9))*0.0016; // тем сильнее, чем ближе
           n.wx += gx/gd*pull; n.wy += gy/gd*pull;
         }
       }
       // ушёл далеко за край — убрать
-      if(tx<-W*0.6||tx>W*1.6||ty<-H*0.6||ty>H*1.6){ noises.splice(i,1); setTimeout(spawnNoise,rnd(3,6)*1000); continue; }
+      if(tx<-W*0.6||tx>W*1.6||ty<-H*0.6||ty>H*1.6){ noises.splice(i,1); setTimeout(spawnNoise,rnd(4,8)*1000); continue; }
       const alpha=Math.min(1, scale*1.4) * (n.z>1.0?(1.25-n.z)/0.25:1);
-      ctx.font=sz+"px 'Cormorant Garamond', Georgia, serif";
+      ctx.font=sz+"px "+(n.font||"'Cormorant Garamond', Georgia, serif");
       ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.shadowColor='rgba('+C+','+(0.4*alpha)+')'; ctx.shadowBlur=18*scale;
       ctx.fillStyle='rgba('+C+','+(0.9*alpha).toFixed(3)+')';
