@@ -365,90 +365,107 @@ function renderMarkdown(md){
 
   // ── ШУМ ТРЕТЬЕГО АГЕНТА (режим покоя) ──────────────────────────────────
   const NS=CONFIG.noise||{on:false};
-  let noise=null;        // активный шум { text, weight, x, y, vx, vy, ph, parts:null }
-  let noiseHidden=false; // скрыт при открытой читалке
+  let noises=[];         // активные шумы (до maxOnscreen)
+  let noiseHidden=false;
   window.__noiseHide=(v)=>{ noiseHidden=v; };
-  if(reader.classList.contains('show')) noiseHidden=true;  // читалка уже открыта при старте
-  let lastObj={px:0,py:0,sz:0, cx:0,cy:0,cOn:false};  // позиции объектов для коллизий
+  if(reader.classList.contains('show')) noiseHidden=true;
+  let lastObj={px:0,py:0,sz:0, cx:0,cy:0,cOn:false};
+  const MAX_NOISE=3;
+
   function spawnNoise(){
-    if(!NS.on) return;
+    if(!NS.on || noiseHidden) return;
+    if(noises.length>=MAX_NOISE) return;
     const it=NS.items[Math.floor(Math.random()*NS.items.length)];
-    noise={
-      text:it.text, weight:it.weight||28,
-      x:W*rnd(0.3,0.7), y:H*rnd(0.3,0.65),
-      vx:(Math.random()-0.5)*NS.drift, vy:(Math.random()-0.5)*NS.drift,
-      ph:Math.random()*7, parts:null, dead:false
+    // движение в объёме: позиция в «мировых» координатах от центра, плюс глубина z
+    const mode=Math.random();
+    let n={
+      text:it.text, base:it.weight||28,
+      wx:rnd(-0.5,0.5), wy:rnd(-0.4,0.4),     // положение относительно центра (-0.5..0.5)
+      vx:rnd(-0.0006,0.0006), vy:rnd(-0.0005,0.0005),
+      z:0, vz:0, ph:Math.random()*7, parts:null
     };
-  }
-  function explodeNoise(hard){
-    // hard=true → разрыв на буквы; false → прошив (вздрогнуть + искры, не умирает)
-    if(!noise) return;
-    ctx.font=noise.weight+"px 'Cormorant Garamond', Georgia, serif";
-    if(hard){
-      const chars=noise.text.split('');
-      let ox=noise.x - ctx.measureText(noise.text).width/2;
-      noise.parts=chars.map(ch=>{
-        const w=ctx.measureText(ch).width, cxp=ox+w/2; ox+=w;
-        return { ch, x:cxp, y:noise.y, vx:(Math.random()-0.5)*3, vy:(Math.random()-0.5)*3-0.5,
-                 rot:0, vr:(Math.random()-0.5)*0.2, a:1 };
-      });
-      noise.dead=true;
+    if(mode<0.45){            // уходит вдаль в точку
+      n.z=rnd(0.6,1.0); n.vz=rnd(0.0015,0.004);
+    } else if(mode<0.8){      // выплывает из глубины к зрителю
+      n.z=rnd(0.7,1.1); n.vz=-rnd(0.0015,0.0035);
+    } else {                  // пролёт мимо камеры: близко и резко мимо
+      n.z=rnd(0.15,0.4); n.vz=-rnd(0.004,0.008);
+      n.vx=rnd(-0.0018,0.0018); n.vy=rnd(-0.0014,0.0014);
     }
+    noises.push(n);
   }
+
+  function explodeNoise(n, tx, ty, sz){
+    ctx.font=sz+"px 'Cormorant Garamond', Georgia, serif";
+    const chars=n.text.split('');
+    let ox=tx - ctx.measureText(n.text).width/2;
+    n.parts=chars.map(ch=>{
+      const w=ctx.measureText(ch).width, cxp=ox+w/2; ox+=w;
+      return { ch, x:cxp, y:ty, sz, vx:(Math.random()-0.5)*3.5, vy:(Math.random()-0.5)*3.5-0.5,
+               rot:0, vr:(Math.random()-0.5)*0.25, a:1 };
+    });
+  }
+
   function drawNoise(t){
-    if(!noise || noiseHidden) return;
+    if(noiseHidden){ noises=[]; return; }
     const C=NS.color||"210,225,255";
-    // режим разлёта букв
-    if(noise.parts){
-      let alive=false;
-      ctx.font=noise.weight+"px 'Cormorant Garamond', Georgia, serif";
+    const FOV=0.9;  // чем меньше — сильнее перспектива
+    for(let i=noises.length-1;i>=0;i--){
+      const n=noises[i];
+      // разлёт букв
+      if(n.parts){
+        let alive=false;
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        for(const p of n.parts){
+          if(p.a<=0) continue; alive=true;
+          p.x+=p.vx; p.y+=p.vy; p.vy+=0.04; p.rot+=p.vr; p.a-=0.014;
+          ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+          ctx.font=p.sz+"px 'Cormorant Garamond', Georgia, serif";
+          ctx.fillStyle='rgba('+C+','+Math.max(0,p.a).toFixed(3)+')';
+          ctx.fillText(p.ch,0,0); ctx.restore();
+        }
+        ctx.textAlign='start'; ctx.textBaseline='alphabetic';
+        if(!alive){ noises.splice(i,1); setTimeout(spawnNoise,(NS.respawn||2.5)*1000); }
+        continue;
+      }
+      // движение в объёме
+      n.wx+=n.vx; n.wy+=n.vy; n.z+=n.vz;
+      // вышел за пределы глубины — исчез, родится новый
+      if(n.z>1.25 || n.z<0.06){ noises.splice(i,1); setTimeout(spawnNoise,rnd(0.3,1.2)*1000); continue; }
+      const scale=FOV/(n.z+FOV);            // перспектива: ближе z → крупнее
+      const sz=n.base*scale*2.2;
+      const tx=W/2 + n.wx*W*scale*1.6;
+      const ty=H/2 + (n.wy*H + Math.sin(t*0.5+n.ph)*(NS.sway||6))*scale*1.6;
+      // ушёл далеко за край — убрать
+      if(tx<-W*0.6||tx>W*1.6||ty<-H*0.6||ty>H*1.6){ noises.splice(i,1); setTimeout(spawnNoise,rnd(0.3,1)*1000); continue; }
+      const alpha=Math.min(1, scale*1.4) * (n.z>1.0?(1.25-n.z)/0.25:1);
+      ctx.font=sz+"px 'Cormorant Garamond', Georgia, serif";
       ctx.textAlign='center'; ctx.textBaseline='middle';
-      for(const p of noise.parts){
-        if(p.a<=0) continue; alive=true;
-        p.x+=p.vx; p.y+=p.vy; p.vy+=0.03; p.rot+=p.vr; p.a-=0.012;
-        ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot);
-        ctx.fillStyle='rgba('+C+','+Math.max(0,p.a).toFixed(3)+')';
-        ctx.fillText(p.ch,0,0); ctx.restore();
-      }
-      ctx.textAlign='start'; ctx.textBaseline='alphabetic';
-      if(!alive){ noise=null; setTimeout(spawnNoise,(NS.respawn||2.5)*1000); }
-      return;
-    }
-    // обычный плавающий текст
-    noise.x+=noise.vx; noise.y+=noise.vy;
-    const pad=noise.weight*4;
-    if(noise.x<pad||noise.x>W-pad) noise.vx*=-1;
-    if(noise.y<pad||noise.y>H-pad) noise.vy*=-1;
-    const sway=Math.sin(t*0.6+noise.ph)*(NS.sway||6);
-    const tx=noise.x, ty=noise.y+sway;
-    ctx.font=noise.weight+"px 'Cormorant Garamond', Georgia, serif";
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    // мягкое свечение
-    ctx.shadowColor='rgba('+C+',0.5)'; ctx.shadowBlur=18;
-    ctx.fillStyle='rgba('+C+',0.9)';
-    ctx.fillText(noise.text,tx,ty);
-    ctx.shadowBlur=0; ctx.textAlign='start'; ctx.textBaseline='alphabetic';
-    noise._tw=ctx.measureText?0:0;
-    // ── столкновения ──
-    const textW=noise.weight*noise.text.length*0.42; // приближённая полуширина
-    const textR=Math.max(noise.weight, textW*0.5);
-    // планета
-    if(lastObj.sz>0){
-      const d=Math.hypot(lastObj.px-tx, lastObj.py-ty);
-      if(d < textR + lastObj.sz){
-        // правило размера: объект намного меньше текста → прошив; иначе разрыв
-        if(lastObj.sz < noise.weight*0.7) sparks(tx,ty,C);     // прошив
-        else explodeNoise(true);                                // разрыв
+      ctx.shadowColor='rgba('+C+','+(0.4*alpha)+')'; ctx.shadowBlur=18*scale;
+      ctx.fillStyle='rgba('+C+','+(0.9*alpha).toFixed(3)+')';
+      ctx.fillText(n.text,tx,ty);
+      ctx.shadowBlur=0; ctx.textAlign='start'; ctx.textBaseline='alphabetic';
+      // ── столкновения: только для близких/крупных шумов (в фокусе) ──
+      if(scale>0.55){
+        const textR=Math.max(sz, n.text.length*sz*0.22);
+        if(lastObj.sz>0){
+          const d=Math.hypot(lastObj.px-tx, lastObj.py-ty);
+          if(d < textR + lastObj.sz){
+            if(lastObj.sz < sz*0.7) sparks(tx,ty,C);          // объект мелкий → прошив
+            else explodeNoise(n,tx,ty,sz);                     // крупнее → разрыв
+          }
+        }
+        if(lastObj.cOn){
+          const d=Math.hypot(lastObj.cx-tx, lastObj.cy-ty);
+          if(d < textR + 14){
+            if(sz > 40) sparks(tx,ty,C);                       // крупный шум комета прошивает
+            else explodeNoise(n,tx,ty,sz);
+          }
+        }
       }
     }
-    // комета (тонкая, маленькая «масса»)
-    if(lastObj.cOn){
-      const d=Math.hypot(lastObj.cx-tx, lastObj.cy-ty);
-      if(d < textR + 14){
-        if(noise.weight > 30) sparks(tx,ty,C);   // крупный шум комета прошивает
-        else explodeNoise(true);                  // мелкий — рвёт
-      }
-    }
+    // поддерживаем поток: если мало шумов — подкинуть
+    if(NS.on && !noiseHidden && noises.length<2 && Math.random()<0.012) spawnNoise();
   }
   let sparkList=[];
   function sparks(x,y,C){
@@ -578,7 +595,7 @@ function renderMarkdown(md){
     drawNoise(t); drawSparks();
     requestAnimationFrame(loop);
   }
-  addEventListener('resize',init); init(); scheduleComet(); schedulePlanet(); spawnNoise(); requestAnimationFrame(loop);
+  addEventListener('resize',init); init(); scheduleComet(); schedulePlanet(); spawnNoise(); setTimeout(spawnNoise,1500); requestAnimationFrame(loop);
 })();
 </script>
 </body>
