@@ -111,8 +111,8 @@ const CONFIG = {
 
   // ── Галактики (type: "spiral" | "globular") ───────────────────────────
   galaxies: [
-    { on:true, type:"spiral",   xPct:78, yPct:18, sizePct:14, angle:0.4, hue:"180,160", arms:2 },
-    { on:true, type:"globular", xPct:20, yPct:82, sizePct:9,  angle:2.1, hue:"210,180" },
+    { on:true, type:"spiral",   xPct:78, yPct:18, sizePct:14, angle:0.4, hue:"180,160", arms:2, bright:1 },
+    { on:true, type:"globular", xPct:20, yPct:82, sizePct:9,  angle:2.1, hue:"210,180",         bright:1 },
   ],
 
   // ── Меню материалов (положение и вид) ─────────────────────────────────
@@ -696,7 +696,8 @@ function renderMarkdown(md){
     }));
     gals=CONFIG.galaxies.filter(g=>g.on).map(g=>{
       const G={ type:g.type||'spiral', x:W*g.xPct/100, y:H*g.yPct/100,
-        s:W*g.sizePct/100, ang:g.angle||0, hue:g.hue.split(',').map(Number), arms:g.arms||2, pts:[] };
+        s:W*g.sizePct/100, ang:g.angle||0, hue:g.hue.split(',').map(Number), arms:g.arms||2,
+        bright:(g.bright==null?1:g.bright), pts:[] };
       if(G.type==='globular'){
         // шаровое скопление: звёзды густо к центру (степенное распределение)
         const N=260;
@@ -720,39 +721,37 @@ function renderMarkdown(md){
     });
   }
   function galaxy(g,t){
-    const H0=g.hue[0], H1=g.hue[1];
+    const H0=g.hue[0], H1=g.hue[1], B=g.bright;
     // мягкое гало
     const gg=ctx.createRadialGradient(g.x,g.y,0,g.x,g.y,g.s);
-    gg.addColorStop(0,'rgba('+H0+','+H1+',255,0.06)');
-    gg.addColorStop(0.4,'rgba('+H0+','+H1+',255,0.03)');
+    gg.addColorStop(0,'rgba('+H0+','+H1+',255,'+(0.06*B)+')');
+    gg.addColorStop(0.4,'rgba('+H0+','+H1+',255,'+(0.03*B)+')');
     gg.addColorStop(1,'rgba(0,0,40,0)');
     ctx.fillStyle=gg; ctx.beginPath();
     const squash = g.type==='globular' ? 0.88 : 0.42;
     ctx.ellipse(g.x,g.y,g.s,g.s*squash,g.ang+t*0.01,0,Math.PI*2); ctx.fill();
     // яркое ядро
     const core=ctx.createRadialGradient(g.x,g.y,0,g.x,g.y,g.s*0.22);
-    core.addColorStop(0,'rgba(255,255,255,0.5)');
-    core.addColorStop(0.5,'rgba('+H0+','+H1+',255,0.18)');
+    core.addColorStop(0,'rgba(255,255,255,'+Math.min(1,0.5*B)+')');
+    core.addColorStop(0.5,'rgba('+H0+','+H1+',255,'+(0.18*B)+')');
     core.addColorStop(1,'rgba('+H0+','+H1+',255,0)');
     ctx.fillStyle=core; ctx.beginPath(); ctx.arc(g.x,g.y,g.s*0.22,0,Math.PI*2); ctx.fill();
 
     const rot=g.ang+t*0.012;
     if(g.type==='globular'){
-      // шаровое скопление: облако звёзд, плотное к центру
       for(const p of g.pts){
         const px=g.x + p.rx*g.s, py=g.y + p.ry*g.s;
-        ctx.fillStyle='rgba('+H0+','+H1+',255,'+(p.b*0.5).toFixed(3)+')';
+        ctx.fillStyle='rgba('+H0+','+H1+',255,'+(p.b*0.5*B).toFixed(3)+')';
         ctx.fillRect(px,py,p.sz,p.sz);
       }
     } else {
-      // спиральное: точки вдоль закрученных рукавов
       for(const p of g.pts){
         const a=rot + p.arm*(Math.PI*2/g.arms) + p.f*Math.PI*2.4;
         const r=g.s*(0.05+p.f*0.85);
         const px=g.x + Math.cos(a)*r + Math.sin(a)*p.j*g.s;
         const py=g.y + (Math.sin(a)*r + Math.cos(a)*p.j*g.s)*0.45;
         if(p.b<0.04) continue;
-        ctx.fillStyle='rgba('+H0+','+H1+',255,'+(p.b*0.18).toFixed(3)+')';
+        ctx.fillStyle='rgba('+H0+','+H1+',255,'+(p.b*0.18*B).toFixed(3)+')';
         ctx.fillRect(px,py,p.sz,p.sz);
       }
     }
