@@ -513,8 +513,15 @@ function renderMarkdown(md){
   }
   function launchShip(){
     if(!SH.on || noiseHidden) return;
-    const b=shipBase();
-    ship={ state:'hunt', x:b.x, y:b.y, angle:0, target:null, swp:0 };
+    // влетает со случайного края экрана
+    let sx,sy;
+    switch(Math.floor(Math.random()*4)){
+      case 0: sx=rnd(0,W); sy=-40; break;       // сверху
+      case 1: sx=W+40;     sy=rnd(0,H); break;  // справа
+      case 2: sx=rnd(0,W); sy=H+40; break;      // снизу
+      default:sx=-40;      sy=rnd(0,H); break;   // слева
+    }
+    ship={ state:'hunt', x:sx, y:sy, angle:0, target:null, swp:0, wob:Math.random()*7 };
   }
   function pickTarget(){
     // выбирает крупнейший доступный шум (потом — выбор агента)
@@ -543,8 +550,14 @@ function renderMarkdown(md){
       } else {
         const tx=ship.target.tx, ty=ship.target.ty;
         const dx=tx-ship.x, dy=ty-ship.y, d=Math.hypot(dx,dy)||1;
-        ship.angle=Math.atan2(dy,dx);
-        ship.x+=dx/d*spd*2; ship.y+=dy/d*spd*2;
+        // базовое направление к цели + перпендикулярное покачивание (изгиб)
+        const nx=dx/d, ny=dy/d;
+        ship.wob+=0.06;
+        const curve=Math.sin(ship.wob)*0.5;        // сила изгиба
+        const mx=nx - ny*curve, my=ny + nx*curve;   // повёрнутый вектор
+        const ml=Math.hypot(mx,my)||1;
+        ship.angle=Math.atan2(my,mx);
+        ship.x+=mx/ml*spd*2; ship.y+=my/ml*spd*2;
         if(d < (ship.target.sz*0.5 + S)){ // долетел — глотаем
           ship.state='swallow'; ship.captured=ship.target; ship.target.captured=true; ship.swp=0;
         }
