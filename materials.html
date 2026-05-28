@@ -126,7 +126,14 @@ const CONFIG = {
     color:      "#555",        // цвет неактивной кнопки
   },
 
-  // ── Будущий объект вместо кометы (пока выключен) ──────────────────────
+  // ── Комета (как в индексе): периодически пролетает с хвостом ──────────
+  comet: {
+    on:        true,   // false = выключить комету
+    minDelay:  3,      // мин. пауза между пролётами, сек
+    maxDelay:  8,      // макс. пауза, сек
+  },
+
+  // ── Доп. объект на будущее (пока выключен) ────────────────────────────
   object: {
     on:    false,       // включи, когда придумаешь объект
     kind:  "",          // напр. "planet" | "blackhole" | "ship" — реализуем позже
@@ -248,6 +255,28 @@ function renderMarkdown(md){
   const cv=document.getElementById('sky'), ctx=cv.getContext('2d');
   const S=CONFIG.stars, SK=CONFIG.sky;
   let W,H,stars,gals;
+  // комета (перенесено из index.html)
+  const CO=CONFIG.comet||{on:false};
+  let cometT=null, cometParams={};
+  function scheduleComet(){
+    if(!CO.on) return;
+    setTimeout(()=>{
+      const edge=Math.random(); let sx,sy;
+      if(edge<0.6){sx=W*(0.4+Math.random()*0.6);sy=10+Math.random()*30;}
+      else{sx=W-10-Math.random()*30;sy=H*Math.random()*0.4;}
+      let dx,dy;
+      if(Math.random()<0.3){
+        const tx=W*(0.4+Math.random()*0.2), ty=H*(0.4+Math.random()*0.2);
+        const len=Math.sqrt((tx-sx)**2+(ty-sy)**2), dist=W*(0.55+Math.random()*0.3);
+        dx=(tx-sx)/len*dist; dy=(ty-sy)/len*dist;
+      } else {
+        const a=(195+Math.random()*110)*Math.PI/180, dist=W*(0.45+Math.random()*0.35);
+        dx=Math.cos(a)*dist; dy=Math.sin(a)*dist;
+      }
+      cometParams={sx,sy,dx,dy,dur:12+Math.random()*22};
+      cometT=performance.now()/1000;
+    },((CO.minDelay||3)+Math.random()*((CO.maxDelay||8)-(CO.minDelay||3)))*1000);
+  }
   function init(){
     W=cv.width=innerWidth; H=cv.height=innerHeight;
     const N=Math.min(S.maxCount, Math.round(W*H/3600*S.density));
@@ -292,10 +321,40 @@ function renderMarkdown(md){
       ctx.fillStyle='rgba('+S.color+','+(s.a*tw).toFixed(3)+')';
       ctx.fillRect(s.x,s.y,s.r,s.r);
     }
-    // место под будущий объект (CONFIG.object) — реализуется позже
+    // комета (перенесено из index.html)
+    if(cometT!==null){
+      const ct=t-cometT, DUR=cometParams.dur||28;
+      if(ct<DUR){
+        const p=ct/DUR;
+        const alpha=(p<.05?p/.05:1)*(p>.85?1-(p-.85)/.15:1);
+        const cx2=cometParams.sx+cometParams.dx*p, cy2=cometParams.sy+cometParams.dy*p;
+        const tailLen=(80+p*160)*alpha;
+        const ang=Math.atan2(cometParams.dy,cometParams.dx);
+        const tx=cx2-Math.cos(ang)*tailLen, ty=cy2-Math.sin(ang)*tailLen;
+        const tg=ctx.createLinearGradient(tx,ty,cx2,cy2);
+        tg.addColorStop(0,'rgba(180,210,255,0)');
+        tg.addColorStop(0.5,'rgba(200,225,255,'+(.08*alpha)+')');
+        tg.addColorStop(0.85,'rgba(230,240,255,'+(.25*alpha)+')');
+        tg.addColorStop(1,'rgba(255,255,255,0)');
+        ctx.beginPath();ctx.moveTo(tx,ty);ctx.lineTo(cx2,cy2);
+        ctx.strokeStyle=tg;ctx.lineWidth=1.5*alpha;ctx.stroke();
+        const t2g=ctx.createLinearGradient(tx,ty,cx2,cy2);
+        t2g.addColorStop(0,'rgba(160,200,255,0)');
+        t2g.addColorStop(1,'rgba(180,215,255,'+(.04*alpha)+')');
+        ctx.beginPath();ctx.moveTo(tx-Math.sin(ang)*3,ty+Math.cos(ang)*3);ctx.lineTo(cx2,cy2);
+        ctx.strokeStyle=t2g;ctx.lineWidth=4*alpha;ctx.stroke();
+        const hg=ctx.createRadialGradient(cx2,cy2,0,cx2,cy2,5);
+        hg.addColorStop(0,'rgba(255,255,255,'+(.9*alpha)+')');
+        hg.addColorStop(0.4,'rgba(220,235,255,'+(.4*alpha)+')');
+        hg.addColorStop(1,'rgba(180,210,255,0)');
+        ctx.fillStyle=hg;ctx.beginPath();ctx.arc(cx2,cy2,5,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='rgba(255,255,255,'+alpha+')';
+        ctx.beginPath();ctx.arc(cx2,cy2,1.2,0,Math.PI*2);ctx.fill();
+      } else { cometT=null; scheduleComet(); }
+    }
     requestAnimationFrame(loop);
   }
-  addEventListener('resize',init); init(); requestAnimationFrame(loop);
+  addEventListener('resize',init); init(); scheduleComet(); requestAnimationFrame(loop);
 })();
 </script>
 </body>
