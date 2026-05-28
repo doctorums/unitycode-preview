@@ -152,6 +152,27 @@ const CONFIG = {
     xPct:  50, yPct: 40, sizePct: 8,
   },
 
+  // ── Шум третьего агента (режим покоя) ─────────────────────────────────
+  // Плавает по небу, колышется, взрывается/прошивается при встрече с
+  // планетой или кометой. Сейчас — ЗАГЛУШКА. Позже источником станет
+  // вывод Связующего (самый рейтинговый шум/связь сети).
+  noise: {
+    on:        true,
+    color:     "210,225,255",  // цвет текста, R,G,B
+    drift:     0.15,           // скорость дрейфа
+    sway:      6,              // амплитуда колыхания, px
+    respawn:   2.5,            // пауза перед появлением нового после разрушения, сек
+    // weight = «вес» шума: влияет на размер (кегль). Больше вес — крупнее и
+    // устойчивее (мелкие объекты прошивают его, не разрушая).
+    items: [
+      { text:"боюсь, что время уходит впустую", weight:34 },
+      { text:"кажется, меня никто не слышит",     weight:22 },
+      { text:"что, если всё это не зря",          weight:46 },
+      { text:"я снова на связи",                  weight:18 },
+      { text:"мы — одно целое, разорванное на части", weight:52 },
+    ],
+  },
+
   // ── Материалы (внутреннее меню) ───────────────────────────────────────
   //   link = страница сайта | reader = показать md тут | ext = внешняя ссылка
   materials: [
@@ -225,6 +246,7 @@ function closeReader(){
   markCurrent(null);
   if(document.activeElement && document.activeElement.blur) document.activeElement.blur();
   openId=null;
+  if(window.__noiseHide) window.__noiseHide(false);
   try{ localStorage.removeItem(LAST_KEY); }catch(e){}
 }
 
@@ -238,6 +260,7 @@ async function openReader(m){
   openId=m.id;
   try{ localStorage.setItem(LAST_KEY,m.id); }catch(e){}
   reader.classList.add('show');
+  if(window.__noiseHide) window.__noiseHide(true);
   if(m.text){ readerBody.innerHTML=renderMarkdown(m.text); return; }  // встроенный текст
   readerBody.innerHTML='<p style="color:#9aa">Загрузка…</p>';
   try{ const res=await fetch(m.src); if(!res.ok)throw 0; readerBody.innerHTML=renderMarkdown(await res.text()); }
@@ -339,6 +362,107 @@ function renderMarkdown(md){
       planetDur=rnd(9,17)/(PL.speed||1);
     },((PL.minDelay||6)+Math.random()*((PL.maxDelay||14)-(PL.minDelay||6)))*1000);
   }
+
+  // ── ШУМ ТРЕТЬЕГО АГЕНТА (режим покоя) ──────────────────────────────────
+  const NS=CONFIG.noise||{on:false};
+  let noise=null;        // активный шум { text, weight, x, y, vx, vy, ph, parts:null }
+  let noiseHidden=false; // скрыт при открытой читалке
+  window.__noiseHide=(v)=>{ noiseHidden=v; };
+  if(reader.classList.contains('show')) noiseHidden=true;  // читалка уже открыта при старте
+  let lastObj={px:0,py:0,sz:0, cx:0,cy:0,cOn:false};  // позиции объектов для коллизий
+  function spawnNoise(){
+    if(!NS.on) return;
+    const it=NS.items[Math.floor(Math.random()*NS.items.length)];
+    noise={
+      text:it.text, weight:it.weight||28,
+      x:W*rnd(0.3,0.7), y:H*rnd(0.3,0.65),
+      vx:(Math.random()-0.5)*NS.drift, vy:(Math.random()-0.5)*NS.drift,
+      ph:Math.random()*7, parts:null, dead:false
+    };
+  }
+  function explodeNoise(hard){
+    // hard=true → разрыв на буквы; false → прошив (вздрогнуть + искры, не умирает)
+    if(!noise) return;
+    ctx.font=noise.weight+"px 'Cormorant Garamond', Georgia, serif";
+    if(hard){
+      const chars=noise.text.split('');
+      let ox=noise.x - ctx.measureText(noise.text).width/2;
+      noise.parts=chars.map(ch=>{
+        const w=ctx.measureText(ch).width, cxp=ox+w/2; ox+=w;
+        return { ch, x:cxp, y:noise.y, vx:(Math.random()-0.5)*3, vy:(Math.random()-0.5)*3-0.5,
+                 rot:0, vr:(Math.random()-0.5)*0.2, a:1 };
+      });
+      noise.dead=true;
+    }
+  }
+  function drawNoise(t){
+    if(!noise || noiseHidden) return;
+    const C=NS.color||"210,225,255";
+    // режим разлёта букв
+    if(noise.parts){
+      let alive=false;
+      ctx.font=noise.weight+"px 'Cormorant Garamond', Georgia, serif";
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      for(const p of noise.parts){
+        if(p.a<=0) continue; alive=true;
+        p.x+=p.vx; p.y+=p.vy; p.vy+=0.03; p.rot+=p.vr; p.a-=0.012;
+        ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+        ctx.fillStyle='rgba('+C+','+Math.max(0,p.a).toFixed(3)+')';
+        ctx.fillText(p.ch,0,0); ctx.restore();
+      }
+      ctx.textAlign='start'; ctx.textBaseline='alphabetic';
+      if(!alive){ noise=null; setTimeout(spawnNoise,(NS.respawn||2.5)*1000); }
+      return;
+    }
+    // обычный плавающий текст
+    noise.x+=noise.vx; noise.y+=noise.vy;
+    const pad=noise.weight*4;
+    if(noise.x<pad||noise.x>W-pad) noise.vx*=-1;
+    if(noise.y<pad||noise.y>H-pad) noise.vy*=-1;
+    const sway=Math.sin(t*0.6+noise.ph)*(NS.sway||6);
+    const tx=noise.x, ty=noise.y+sway;
+    ctx.font=noise.weight+"px 'Cormorant Garamond', Georgia, serif";
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    // мягкое свечение
+    ctx.shadowColor='rgba('+C+',0.5)'; ctx.shadowBlur=18;
+    ctx.fillStyle='rgba('+C+',0.9)';
+    ctx.fillText(noise.text,tx,ty);
+    ctx.shadowBlur=0; ctx.textAlign='start'; ctx.textBaseline='alphabetic';
+    noise._tw=ctx.measureText?0:0;
+    // ── столкновения ──
+    const textW=noise.weight*noise.text.length*0.42; // приближённая полуширина
+    const textR=Math.max(noise.weight, textW*0.5);
+    // планета
+    if(lastObj.sz>0){
+      const d=Math.hypot(lastObj.px-tx, lastObj.py-ty);
+      if(d < textR + lastObj.sz){
+        // правило размера: объект намного меньше текста → прошив; иначе разрыв
+        if(lastObj.sz < noise.weight*0.7) sparks(tx,ty,C);     // прошив
+        else explodeNoise(true);                                // разрыв
+      }
+    }
+    // комета (тонкая, маленькая «масса»)
+    if(lastObj.cOn){
+      const d=Math.hypot(lastObj.cx-tx, lastObj.cy-ty);
+      if(d < textR + 14){
+        if(noise.weight > 30) sparks(tx,ty,C);   // крупный шум комета прошивает
+        else explodeNoise(true);                  // мелкий — рвёт
+      }
+    }
+  }
+  let sparkList=[];
+  function sparks(x,y,C){
+    for(let i=0;i<10;i++) sparkList.push({x,y,a:1,
+      vx:(Math.random()-0.5)*4, vy:(Math.random()-0.5)*4, c:C});
+  }
+  function drawSparks(){
+    for(const s of sparkList){ if(s.a<=0)continue;
+      s.x+=s.vx; s.y+=s.vy; s.a-=0.04;
+      ctx.fillStyle='rgba('+s.c+','+Math.max(0,s.a).toFixed(3)+')';
+      ctx.fillRect(s.x,s.y,2,2);
+    }
+    sparkList=sparkList.filter(s=>s.a>0);
+  }
   function init(){
     W=cv.width=innerWidth; H=cv.height=innerHeight;
     const N=Math.min(S.maxCount, Math.round(W*H/3600*S.density));
@@ -371,6 +495,7 @@ function renderMarkdown(md){
   }
   function loop(now){
     const t=now/1000, br=SK.brightness;
+    lastObj.sz=0; lastObj.cOn=false;  // сброс позиций объектов на кадр
     const bg=ctx.createLinearGradient(0,0,0,H);
     bg.addColorStop(0,SK.top); bg.addColorStop(0.6,SK.mid); bg.addColorStop(1,SK.bottom);
     ctx.globalAlpha=1; ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
@@ -393,6 +518,7 @@ function renderMarkdown(md){
         const px=mt*mt*PP.ax + 2*mt*p*PP.cx + p*p*PP.bx;
         const py=mt*mt*PP.ay + 2*mt*p*PP.cy + p*p*PP.by;
         const sz=msz*(0.35+0.65*Math.sin(p*Math.PI));
+        lastObj.px=px; lastObj.py=py; lastObj.sz=sz;
         const al=Math.min(Math.min(1,p/0.08),Math.min(1,(1-p)/0.08));
         const C=PP.color;
         if(PP.ring){
@@ -424,6 +550,7 @@ function renderMarkdown(md){
         const p=ct/DUR;
         const alpha=(p<.05?p/.05:1)*(p>.85?1-(p-.85)/.15:1);
         const cx2=cometParams.sx+cometParams.dx*p, cy2=cometParams.sy+cometParams.dy*p;
+        lastObj.cx=cx2; lastObj.cy=cy2; lastObj.cOn=true;
         const tailLen=(80+p*160)*alpha;
         const ang=Math.atan2(cometParams.dy,cometParams.dx);
         const tx=cx2-Math.cos(ang)*tailLen, ty=cy2-Math.sin(ang)*tailLen;
@@ -448,9 +575,10 @@ function renderMarkdown(md){
         ctx.beginPath();ctx.arc(cx2,cy2,1.2,0,Math.PI*2);ctx.fill();
       } else { cometT=null; scheduleComet(); }
     }
+    drawNoise(t); drawSparks();
     requestAnimationFrame(loop);
   }
-  addEventListener('resize',init); init(); scheduleComet(); schedulePlanet(); requestAnimationFrame(loop);
+  addEventListener('resize',init); init(); scheduleComet(); schedulePlanet(); spawnNoise(); requestAnimationFrame(loop);
 })();
 </script>
 </body>
