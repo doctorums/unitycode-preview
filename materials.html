@@ -384,7 +384,11 @@ function renderMarkdown(md){
   function spawnNoise(){
     if(!NS.on || noiseHidden) return;
     if(noises.length>=MAX_NOISE) return;
-    const it=NS.items[Math.floor(Math.random()*NS.items.length)];
+    // не брать фразу, которая уже висит
+    const onscreen=noises.map(n=>n.text);
+    const avail=NS.items.filter(it=>!onscreen.includes(it.text));
+    if(!avail.length) return;
+    const it=avail[Math.floor(Math.random()*avail.length)];
     // движение в объёме: позиция в «мировых» координатах от центра, плюс глубина z
     const mode=Math.random();
     let n={
@@ -468,20 +472,20 @@ function renderMarkdown(md){
       ctx.fillStyle='rgba('+C+','+(0.9*alpha).toFixed(3)+')';
       ctx.fillText(n.text,tx,ty);
       ctx.shadowBlur=0; ctx.textAlign='start'; ctx.textBaseline='alphabetic';
-      // ── столкновения: только для близких/крупных шумов (в фокусе), точный контакт ──
-      if(scale>0.6){
-        const textR=sz*0.55;   // плотный радиус — рвёт только при реальном касании
+      // ── столкновения с планетой/кометой ──
+      if(scale>0.4 && !n.captured){
+        const textR=sz*0.9;   // зона текста (вся фраза, не только центр)
         if(lastObj.sz>0){
           const d=Math.hypot(lastObj.px-tx, lastObj.py-ty);
-          if(d < textR + lastObj.sz*0.7){
-            if(lastObj.sz < sz*0.7) sparks(tx,ty,C);
-            else explodeNoise(n,tx,ty,sz);
+          if(d < textR + lastObj.sz){
+            if(lastObj.sz < sz*0.6) sparks(tx,ty,C);   // объект сильно мельче → прошив
+            else explodeNoise(n,tx,ty,sz);              // соизмерим/крупнее → разрыв
           }
         }
         if(lastObj.cOn){
           const d=Math.hypot(lastObj.cx-tx, lastObj.cy-ty);
-          if(d < textR + 8){
-            if(sz > 50) sparks(tx,ty,C);
+          if(d < textR + 18){
+            if(sz > 55) sparks(tx,ty,C);
             else explodeNoise(n,tx,ty,sz);
           }
         }
