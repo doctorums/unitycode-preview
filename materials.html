@@ -1,4 +1,4 @@
-DOCTYPE html>
+<!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════════════
      UNITYCODE · МАТЕРИАЛЫ (хаб)  —  ПАМЯТКА ФОРКЕРУ
      Раздел-контейнер со звёздным фоном (независим от index.html).
@@ -359,7 +359,7 @@ function renderMarkdown(md){
         tilt:  rnd(-1.2,1.2),
       };
       planetT=performance.now()/1000;
-      planetDur=rnd(9,17)/(PL.speed||1);
+      planetDur=rnd(16,28)/(PL.speed||1);
     },((PL.minDelay||6)+Math.random()*((PL.maxDelay||14)-(PL.minDelay||6)))*1000);
   }
 
@@ -380,17 +380,17 @@ function renderMarkdown(md){
     const mode=Math.random();
     let n={
       text:it.text, base:it.weight||28,
-      wx:rnd(-0.5,0.5), wy:rnd(-0.4,0.4),     // положение относительно центра (-0.5..0.5)
-      vx:rnd(-0.0006,0.0006), vy:rnd(-0.0005,0.0005),
+      wx:rnd(-0.5,0.5), wy:rnd(-0.4,0.4),
+      vx:rnd(-0.0003,0.0003), vy:rnd(-0.00025,0.00025),
       z:0, vz:0, ph:Math.random()*7, parts:null
     };
     if(mode<0.45){            // уходит вдаль в точку
-      n.z=rnd(0.6,1.0); n.vz=rnd(0.0015,0.004);
+      n.z=rnd(0.6,1.0); n.vz=rnd(0.0007,0.0018);
     } else if(mode<0.8){      // выплывает из глубины к зрителю
-      n.z=rnd(0.7,1.1); n.vz=-rnd(0.0015,0.0035);
-    } else {                  // пролёт мимо камеры: близко и резко мимо
-      n.z=rnd(0.15,0.4); n.vz=-rnd(0.004,0.008);
-      n.vx=rnd(-0.0018,0.0018); n.vy=rnd(-0.0014,0.0014);
+      n.z=rnd(0.7,1.1); n.vz=-rnd(0.0007,0.0016);
+    } else {                  // пролёт мимо камеры
+      n.z=rnd(0.2,0.45); n.vz=-rnd(0.002,0.004);
+      n.vx=rnd(-0.0009,0.0009); n.vy=rnd(-0.0007,0.0007);
     }
     noises.push(n);
   }
@@ -425,19 +425,19 @@ function renderMarkdown(md){
           ctx.fillText(p.ch,0,0); ctx.restore();
         }
         ctx.textAlign='start'; ctx.textBaseline='alphabetic';
-        if(!alive){ noises.splice(i,1); setTimeout(spawnNoise,(NS.respawn||2.5)*1000+rnd(0,2000)); }
+        if(!alive){ noises.splice(i,1); setTimeout(spawnNoise,(NS.respawn||2.5)*1000+rnd(1500,4000)); }
         continue;
       }
       // движение в объёме
       n.wx+=n.vx; n.wy+=n.vy; n.z+=n.vz;
       // вышел за пределы глубины — исчез, родится новый
-      if(n.z>1.25 || n.z<0.06){ noises.splice(i,1); setTimeout(spawnNoise,rnd(2,4.5)*1000); continue; }
+      if(n.z>1.25 || n.z<0.06){ noises.splice(i,1); setTimeout(spawnNoise,rnd(3.5,7)*1000); continue; }
       const scale=FOV/(n.z+FOV);            // перспектива: ближе z → крупнее
       const sz=n.base*scale*3.2;
       const tx=W/2 + n.wx*W*scale*1.6;
       const ty=H/2 + (n.wy*H + Math.sin(t*0.5+n.ph)*(NS.sway||6))*scale*1.6;
       // ушёл далеко за край — убрать
-      if(tx<-W*0.6||tx>W*1.6||ty<-H*0.6||ty>H*1.6){ noises.splice(i,1); setTimeout(spawnNoise,rnd(1.5,3.5)*1000); continue; }
+      if(tx<-W*0.6||tx>W*1.6||ty<-H*0.6||ty>H*1.6){ noises.splice(i,1); setTimeout(spawnNoise,rnd(3,6)*1000); continue; }
       const alpha=Math.min(1, scale*1.4) * (n.z>1.0?(1.25-n.z)/0.25:1);
       ctx.font=sz+"px 'Cormorant Garamond', Georgia, serif";
       ctx.textAlign='center'; ctx.textBaseline='middle';
@@ -465,7 +465,7 @@ function renderMarkdown(md){
       }
     }
     // поддерживаем поток: если шумов мало — изредка подкинуть
-    if(NS.on && !noiseHidden && noises.length<1 && Math.random()<0.004) spawnNoise();
+    if(NS.on && !noiseHidden && noises.length<1 && Math.random()<0.0018) spawnNoise();
   }
   let sparkList=[];
   function sparks(x,y,C){
