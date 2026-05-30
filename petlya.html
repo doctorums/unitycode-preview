@@ -232,9 +232,9 @@ padding: 0.6rem 0.8rem;
 .message.ai .message-body { font-size: 1.1rem; } .message.user .message-body { font-size: 0.74rem; }
 }
 /* ВОСПОМИНАНИЯ — восстановленный диалог, живой, приглушённый */
-.memory { opacity: 0.55; transition: opacity 0.6s ease; will-change: transform, opacity, filter; }
-.memory .message-body { color: rgba(200,215,240,0.7); }
-.memory.user .message-body { color: rgba(0,255,136,0.45); }
+.memory { opacity: 0.7; transition: opacity 0.6s ease; will-change: transform, opacity, filter; }
+.memory .message-body { color: rgba(210,225,245,0.85); }
+.memory.user .message-body { color: rgba(0,255,136,0.75); font-size: 0.95rem; }
 
 @keyframes mem-breathe { 0%,100% { transform: scale(1); opacity:0.5; } 50% { transform: scale(1.025); opacity:0.7; } }
 .mem-breathe { animation: mem-breathe 7s ease-in-out infinite; }
@@ -565,25 +565,22 @@ function restoreDialog() {
   if (!Array.isArray(saved) || !saved.length) return false;
   messages = saved.slice();
 
-  // выбираем вариант эффекта, не повторяя прошлый за сессию
   var variants = ['mem-breathe','mem-drift','mem-tilt','mem-wave','mem-blur','mem-sway'];
-  var prev = '';
-  try { prev = sessionStorage.getItem('uc_petlya_memfx') || ''; } catch(e){}
-  var pool = variants.filter(function(v){ return v !== prev; });
-  var fx = pool[Math.floor(Math.random()*pool.length)];
-  try { sessionStorage.setItem('uc_petlya_memfx', fx); } catch(e){}
+  var lastFx = '';   // чтобы соседние блоки не совпадали по эффекту
 
   let lastUser = '';
   for (const m of saved) {
     const { div, mbId } = addMessage(m.role === 'user' ? 'user' : 'ai', m.content);
+    // каждому сообщению — свой эффект, отличный от предыдущего
+    var pool = variants.filter(function(v){ return v !== lastFx; });
+    var fx = pool[Math.floor(Math.random()*pool.length)];
+    lastFx = fx;
     div.classList.add('memory', fx);
-    // у воспоминаний нет кнопки «вплести» — они уже прожиты
+    // своя длительность и фаза — движение полностью независимое
+    div.style.animationDuration = (7 + Math.random()*7).toFixed(1) + 's';
+    div.style.animationDelay = (Math.random()*4).toFixed(2) + 's';
     if (m.role === 'user') lastUser = m.content;
   }
-  // лёгкий случайный сдвиг фазы каждому блоку, чтобы не дышали синхронно
-  Array.from(document.querySelectorAll('.memory')).forEach(function(el, i){
-    el.style.animationDelay = (i * 0.7 + Math.random()*1.5).toFixed(2) + 's';
-  });
   scrollBottom();
   return true;
 }
