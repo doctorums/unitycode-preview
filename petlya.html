@@ -520,12 +520,31 @@ if (i % 20 === 0) scrollBottom();
 }
 }
 
+// Восстановление диалога сессии (при возврате на Спираль из меню)
+function restoreDialog() {
+  let saved = null;
+  try { saved = JSON.parse(sessionStorage.getItem('uc_petlya_dialog') || 'null'); } catch(e){}
+  if (!Array.isArray(saved) || !saved.length) return false;
+  messages = saved.slice();
+  let lastUser = '';
+  for (const m of saved) {
+    if (m.role === 'user') { lastUser = m.content; addMessage('user', m.content); }
+    else {
+      const { div, mbId } = addMessage('ai', m.content);
+      finalizeAiMessage(div, mbId, m.content, lastUser);
+    }
+  }
+  scrollBottom();
+  return true;
+}
+
 // Добавляет сообщение в историю с триммингом
 function pushMessage(role, content) {
 messages.push({ role, content });
 if (messages.length > MESSAGES_MAX) {
 messages = messages.slice(-MESSAGES_MAX);
 }
+try { sessionStorage.setItem('uc_petlya_dialog', JSON.stringify(messages)); } catch(e){}
 }
 
 // ═══════════════════════════════════════════════════════
@@ -788,6 +807,10 @@ btn.dataset.weaveInProgress = '0';
 // ═══════════════════════════════════════════════════════
 (function(){
 var el = document.querySelector('.sys-msg');
+// при возврате на Спираль — восстановить прошлый диалог сессии
+var restored = false;
+try { restored = restoreDialog(); } catch(e){}
+if (restored) { if (el) el.remove(); return; }
 if(!el) return;
 // показываем вступление только один раз за сессию (при возврате из меню — не показываем)
 var seen = false;
