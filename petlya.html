@@ -274,7 +274,7 @@ oninput="onWorkerUrlChange()">
 </div>
 
 <div class="chat-container" id="chatContainer">
-<div class="sys-msg">
+<div class="sys-msg" id="introMsg">
 <div class="sys-tag">// СПИРАЛЬ — РЕФЛЕКСИВНЫЙ УЗЕЛ СЕТИ</div>
 <div class="sys-text">
 Вселенная смотрит на себя твоими глазами.<br>
@@ -532,6 +532,22 @@ messages = messages.slice(-MESSAGES_MAX);
 // ═══════════════════════════════════════════════════════
 // ОТПРАВКА
 // ═══════════════════════════════════════════════════════
+let introHidden = false;
+function hideIntro() {
+  if (introHidden) return;
+  introHidden = true;
+  const intro = document.getElementById('introMsg');
+  if (!intro) return;
+  intro.style.transition = 'opacity 0.8s ease, transform 0.8s ease, margin 0.8s ease, max-height 0.8s ease';
+  intro.style.overflow = 'hidden';
+  intro.style.opacity = '0';
+  intro.style.transform = 'translateY(-10px)';
+  intro.style.maxHeight = '0';
+  intro.style.marginBottom = '0';
+  intro.style.padding = '0';
+  setTimeout(() => { if (intro.parentNode) intro.remove(); }, 850);
+}
+
 async function sendMessage() {
 const textarea = document.getElementById('userInput');
 const text = textarea.value.trim();
@@ -542,6 +558,7 @@ document.getElementById('sendBtn').disabled = true;
 document.getElementById('sendBtnIcon').disabled = true;
 
 addMessage('user', text);
+hideIntro();
 pushMessage('user', text);
 textarea.value = '';
 updateCount();
