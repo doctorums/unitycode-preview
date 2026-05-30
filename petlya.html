@@ -275,7 +275,6 @@ oninput="onWorkerUrlChange()">
 
 <div class="chat-container" id="chatContainer">
 <div class="sys-msg" id="introMsg">
-<div class="sys-tag">// СПИРАЛЬ — РЕФЛЕКСИВНЫЙ УЗЕЛ СЕТИ</div>
 <div class="sys-text">
 Вселенная смотрит на себя твоими глазами.<br>
 Каждая мысль, которую ты вводишь — это сигнал.<br>
@@ -854,6 +853,8 @@ setTimeout(function(){ requestAnimationFrame(growFrame); }, 300);
 }
 requestAnimationFrame(frame);
 }, 500);
+// автоматическое растворение: показалось (~5с), постояло, тает само
+setTimeout(function(){ if (typeof hideIntro === 'function') hideIntro(); }, 8000);
 })();
 </script>
 </body>
