@@ -620,9 +620,12 @@ function hideIntro() {
 let memoriesDismissed = false;
 function dismissMemories() {
   if (memoriesDismissed) return;
-  memoriesDismissed = true;
   const mems = Array.from(document.querySelectorAll('.memory'));
-  if (!mems.length) return;
+  if (!mems.length) return;          // воспоминаний нет — это обычный активный диалог, не трогаем
+  memoriesDismissed = true;
+  // старый диалог прожит — стираем из памяти, дальше пишется только новый
+  messages = [];
+  try { sessionStorage.removeItem('uc_petlya_dialog'); } catch(e){}
   var outs = ['out-dissolve','out-up','out-shrink','out-side','out-fade'];
   var prev = '';
   try { prev = sessionStorage.getItem('uc_petlya_memout') || ''; } catch(e){}
