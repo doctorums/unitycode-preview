@@ -234,17 +234,18 @@ padding: 0.6rem 0.8rem;
 /* ВОСПОМИНАНИЯ — восстановленный диалог, живой, приглушённый */
 .memory { opacity: 0.7; transition: opacity 0.6s ease; will-change: transform, opacity, filter; }
 .memory .message-body { color: rgba(210,225,245,0.85); }
-.memory.user .message-body { color: rgba(0,255,136,0.82); font-size: 1.6rem; font-family: 'Kalam', cursive; letter-spacing: 0.01em; line-height: 1.4; }
+.memory.user .message-body { color: rgba(0,255,136,0.82); font-size: 2.2rem; font-family: 'Kalam', cursive; letter-spacing: 0.01em; line-height: 1.35; }
 
-/* горизонтальные траектории шума-воспоминания (движется сам по себе) */
-@keyframes memh-rl { 0% { transform: translateX(18px); } 100% { transform: translateX(-22px); } }
-.memh-rl { animation: memh-rl 16s ease-in-out infinite alternate; }
-@keyframes memh-lr { 0% { transform: translateX(-22px); } 100% { transform: translateX(18px); } }
-.memh-lr { animation: memh-lr 18s ease-in-out infinite alternate; }
-@keyframes memh-arc { 0% { transform: translateX(20px) translateY(0); } 50% { transform: translateX(-4px) translateY(-8px); } 100% { transform: translateX(-22px) translateY(0); } }
-.memh-arc { animation: memh-arc 20s ease-in-out infinite alternate; }
-@keyframes memh-tiltslide { 0% { transform: translateX(16px) rotate(1deg); } 100% { transform: translateX(-20px) rotate(-1.5deg); } }
-.memh-tiltslide { animation: memh-tiltslide 17s ease-in-out infinite alternate; }
+/* шум-воспоминание плывёт по диагонали через экран, поверх другого текста */
+.memory.user { position: relative; z-index: 5; }
+@keyframes memh-diag1 { 0% { transform: translate(40vw, 30px); opacity:0; } 12% { opacity:0.82; } 88% { opacity:0.82; } 100% { transform: translate(-45vw, -120px); opacity:0; } }
+.memh-rl { animation: memh-diag1 24s linear infinite; }
+@keyframes memh-diag2 { 0% { transform: translate(-40vw, -40px); opacity:0; } 12% { opacity:0.82; } 88% { opacity:0.82; } 100% { transform: translate(45vw, 110px); opacity:0; } }
+.memh-lr { animation: memh-diag2 26s linear infinite; }
+@keyframes memh-diag3 { 0% { transform: translate(42vw, -60px); opacity:0; } 12% { opacity:0.82; } 88% { opacity:0.82; } 100% { transform: translate(-44vw, 90px); opacity:0; } }
+.memh-arc { animation: memh-diag3 28s linear infinite; }
+@keyframes memh-diag4 { 0% { transform: translate(-42vw, 50px) rotate(-2deg); opacity:0; } 12% { opacity:0.82; } 88% { opacity:0.82; } 100% { transform: translate(44vw, -100px) rotate(2deg); opacity:0; } }
+.memh-tiltslide { animation: memh-diag4 25s linear infinite; }
 
 @keyframes mem-breathe { 0%,100% { transform: scale(1); opacity:0.5; } 50% { transform: scale(1.025); opacity:0.7; } }
 .mem-breathe { animation: mem-breathe 7s ease-in-out infinite; }
@@ -588,16 +589,17 @@ function restoreDialog() {
   for (const m of saved) {
     const { div, mbId } = addMessage(m.role === 'user' ? 'user' : 'ai', m.content);
     if (m.role === 'user') {
-      div.classList.add('memory', chosenUserFx);     // шум — горизонтальный дрейф
+      div.classList.add('memory', chosenUserFx);     // шум — диагональный проход (длительность из CSS)
+      div.style.animationDelay = (Math.random()*6).toFixed(2) + 's';
       lastUser = m.content;
     } else {
       var pool = aiFx.filter(function(v){ return v !== lastAiFx; });
       var fx = pool[Math.floor(Math.random()*pool.length)];
       lastAiFx = fx;
       div.classList.add('memory', fx);               // отклик — своё дыхание
+      div.style.animationDuration = (12 + Math.random()*8).toFixed(1) + 's';
+      div.style.animationDelay = (Math.random()*4).toFixed(2) + 's';
     }
-    div.style.animationDuration = (12 + Math.random()*8).toFixed(1) + 's';
-    div.style.animationDelay = (Math.random()*4).toFixed(2) + 's';
   }
   scrollBottom();
   return true;
