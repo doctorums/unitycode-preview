@@ -234,7 +234,17 @@ padding: 0.6rem 0.8rem;
 /* ВОСПОМИНАНИЯ — восстановленный диалог, живой, приглушённый */
 .memory { opacity: 0.7; transition: opacity 0.6s ease; will-change: transform, opacity, filter; }
 .memory .message-body { color: rgba(210,225,245,0.85); }
-.memory.user .message-body { color: rgba(0,255,136,0.75); font-size: 0.95rem; }
+.memory.user .message-body { color: rgba(0,255,136,0.78); font-size: 1.15rem; font-family: 'Caveat', 'Marck Script', cursive; letter-spacing: 0.02em; }
+
+/* горизонтальные траектории шума-воспоминания (движется сам по себе) */
+@keyframes memh-rl { 0% { transform: translateX(18px); } 100% { transform: translateX(-22px); } }
+.memh-rl { animation: memh-rl 16s ease-in-out infinite alternate; }
+@keyframes memh-lr { 0% { transform: translateX(-22px); } 100% { transform: translateX(18px); } }
+.memh-lr { animation: memh-lr 18s ease-in-out infinite alternate; }
+@keyframes memh-arc { 0% { transform: translateX(20px) translateY(0); } 50% { transform: translateX(-4px) translateY(-8px); } 100% { transform: translateX(-22px) translateY(0); } }
+.memh-arc { animation: memh-arc 20s ease-in-out infinite alternate; }
+@keyframes memh-tiltslide { 0% { transform: translateX(16px) rotate(1deg); } 100% { transform: translateX(-20px) rotate(-1.5deg); } }
+.memh-tiltslide { animation: memh-tiltslide 17s ease-in-out infinite alternate; }
 
 @keyframes mem-breathe { 0%,100% { transform: scale(1); opacity:0.5; } 50% { transform: scale(1.025); opacity:0.7; } }
 .mem-breathe { animation: mem-breathe 7s ease-in-out infinite; }
@@ -565,21 +575,29 @@ function restoreDialog() {
   if (!Array.isArray(saved) || !saved.length) return false;
   messages = saved.slice();
 
-  var variants = ['mem-breathe','mem-drift','mem-tilt','mem-wave','mem-blur','mem-sway'];
-  var lastFx = '';   // чтобы соседние блоки не совпадали по эффекту
+  var aiFx   = ['mem-breathe','mem-drift','mem-tilt','mem-wave','mem-blur','mem-sway'];
+  var userFx = ['memh-rl','memh-lr','memh-arc','memh-tiltslide'];   // шум плывёт горизонтально
+  var prevUser = '';
+  try { prevUser = sessionStorage.getItem('uc_petlya_userfx') || ''; } catch(e){}
+  var userPool = userFx.filter(function(v){ return v !== prevUser; });
+  var chosenUserFx = userPool[Math.floor(Math.random()*userPool.length)];
+  try { sessionStorage.setItem('uc_petlya_userfx', chosenUserFx); } catch(e){}
 
+  var lastAiFx = '';
   let lastUser = '';
   for (const m of saved) {
     const { div, mbId } = addMessage(m.role === 'user' ? 'user' : 'ai', m.content);
-    // каждому сообщению — свой эффект, отличный от предыдущего
-    var pool = variants.filter(function(v){ return v !== lastFx; });
-    var fx = pool[Math.floor(Math.random()*pool.length)];
-    lastFx = fx;
-    div.classList.add('memory', fx);
-    // своя длительность и фаза — движение полностью независимое
-    div.style.animationDuration = (7 + Math.random()*7).toFixed(1) + 's';
+    if (m.role === 'user') {
+      div.classList.add('memory', chosenUserFx);     // шум — горизонтальный дрейф
+      lastUser = m.content;
+    } else {
+      var pool = aiFx.filter(function(v){ return v !== lastAiFx; });
+      var fx = pool[Math.floor(Math.random()*pool.length)];
+      lastAiFx = fx;
+      div.classList.add('memory', fx);               // отклик — своё дыхание
+    }
+    div.style.animationDuration = (12 + Math.random()*8).toFixed(1) + 's';
     div.style.animationDelay = (Math.random()*4).toFixed(2) + 's';
-    if (m.role === 'user') lastUser = m.content;
   }
   scrollBottom();
   return true;
