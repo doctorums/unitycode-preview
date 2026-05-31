@@ -236,16 +236,16 @@ padding: 0.6rem 0.8rem;
 .memory .message-body { color: rgba(210,225,245,0.85); }
 .memory.user .message-body { color: rgba(0,255,136,0.82); font-size: 2.2rem; font-family: 'Kalam', cursive; letter-spacing: 0.01em; line-height: 1.35; }
 
-/* шум-воспоминание плывёт по диагонали через экран, поверх другого текста */
+/* шум-воспоминание: медленный диагональный маятник справа-сверху → вниз-влево */
 .memory.user { position: relative; z-index: 5; }
-@keyframes memh-diag1 { 0% { transform: translate(40vw, 30px); opacity:0; } 12% { opacity:0.82; } 88% { opacity:0.82; } 100% { transform: translate(-45vw, -120px); opacity:0; } }
-.memh-rl { animation: memh-diag1 24s linear infinite; }
-@keyframes memh-diag2 { 0% { transform: translate(-40vw, -40px); opacity:0; } 12% { opacity:0.82; } 88% { opacity:0.82; } 100% { transform: translate(45vw, 110px); opacity:0; } }
-.memh-lr { animation: memh-diag2 26s linear infinite; }
-@keyframes memh-diag3 { 0% { transform: translate(42vw, -60px); opacity:0; } 12% { opacity:0.82; } 88% { opacity:0.82; } 100% { transform: translate(-44vw, 90px); opacity:0; } }
-.memh-arc { animation: memh-diag3 28s linear infinite; }
-@keyframes memh-diag4 { 0% { transform: translate(-42vw, 50px) rotate(-2deg); opacity:0; } 12% { opacity:0.82; } 88% { opacity:0.82; } 100% { transform: translate(44vw, -100px) rotate(2deg); opacity:0; } }
-.memh-tiltslide { animation: memh-diag4 25s linear infinite; }
+@keyframes memh-diag1 { 0% { transform: translate(35vw, -80px); opacity:0.1; } 15% { opacity:0.82; } 85% { opacity:0.82; } 100% { transform: translate(-35vw, 100px); opacity:0.1; } }
+.memh-rl { animation: memh-diag1 260s ease-in-out infinite alternate; }
+@keyframes memh-diag2 { 0% { transform: translate(40vw, -60px) rotate(-1deg); opacity:0.1; } 15% { opacity:0.82; } 85% { opacity:0.82; } 100% { transform: translate(-40vw, 120px) rotate(1.5deg); opacity:0.1; } }
+.memh-lr { animation: memh-diag2 280s ease-in-out infinite alternate; }
+@keyframes memh-diag3 { 0% { transform: translate(32vw, -90px); opacity:0.1; } 15% { opacity:0.82; } 85% { opacity:0.82; } 100% { transform: translate(-38vw, 80px); opacity:0.1; } }
+.memh-arc { animation: memh-diag3 250s ease-in-out infinite alternate; }
+@keyframes memh-diag4 { 0% { transform: translate(38vw, -70px) rotate(-1.5deg); opacity:0.1; } 15% { opacity:0.82; } 85% { opacity:0.82; } 100% { transform: translate(-36vw, 110px) rotate(1deg); opacity:0.1; } }
+.memh-tiltslide { animation: memh-diag4 270s ease-in-out infinite alternate; }
 
 @keyframes mem-breathe { 0%,100% { transform: scale(1); opacity:0.5; } 50% { transform: scale(1.025); opacity:0.7; } }
 .mem-breathe { animation: mem-breathe 7s ease-in-out infinite; }
