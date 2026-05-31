@@ -238,13 +238,13 @@ padding: 0.6rem 0.8rem;
 
 /* шум-воспоминание: медленный диагональный маятник справа-сверху → вниз-влево */
 .memory.user { position: relative; z-index: 5; }
-@keyframes memh-diag1 { 0% { transform: translate(35vw, -80px); opacity:0.1; } 15% { opacity:0.82; } 85% { opacity:0.82; } 100% { transform: translate(-35vw, 100px); opacity:0.1; } }
+@keyframes memh-diag1 { 0% { transform: translate(35vw, -80px); opacity:0.75; } 100% { transform: translate(-35vw, 100px); opacity:0.75; } }
 .memh-rl { animation: memh-diag1 260s ease-in-out infinite alternate; }
-@keyframes memh-diag2 { 0% { transform: translate(40vw, -60px) rotate(-1deg); opacity:0.1; } 15% { opacity:0.82; } 85% { opacity:0.82; } 100% { transform: translate(-40vw, 120px) rotate(1.5deg); opacity:0.1; } }
+@keyframes memh-diag2 { 0% { transform: translate(40vw, -60px) rotate(-1deg); opacity:0.75; } 100% { transform: translate(-40vw, 120px) rotate(1.5deg); opacity:0.75; } }
 .memh-lr { animation: memh-diag2 280s ease-in-out infinite alternate; }
-@keyframes memh-diag3 { 0% { transform: translate(32vw, -90px); opacity:0.1; } 15% { opacity:0.82; } 85% { opacity:0.82; } 100% { transform: translate(-38vw, 80px); opacity:0.1; } }
+@keyframes memh-diag3 { 0% { transform: translate(32vw, -90px); opacity:0.75; } 100% { transform: translate(-38vw, 80px); opacity:0.75; } }
 .memh-arc { animation: memh-diag3 250s ease-in-out infinite alternate; }
-@keyframes memh-diag4 { 0% { transform: translate(38vw, -70px) rotate(-1.5deg); opacity:0.1; } 15% { opacity:0.82; } 85% { opacity:0.82; } 100% { transform: translate(-36vw, 110px) rotate(1deg); opacity:0.1; } }
+@keyframes memh-diag4 { 0% { transform: translate(38vw, -70px) rotate(-1.5deg); opacity:0.75; } 100% { transform: translate(-36vw, 110px) rotate(1deg); opacity:0.75; } }
 .memh-tiltslide { animation: memh-diag4 270s ease-in-out infinite alternate; }
 
 @keyframes mem-breathe { 0%,100% { transform: scale(1); opacity:0.5; } 50% { transform: scale(1.025); opacity:0.7; } }
@@ -600,8 +600,10 @@ function restoreDialog() {
       div.classList.add('memory', fx);
       div.style.animationDuration = (12 + Math.random()*8).toFixed(1) + 's';
       div.style.animationDelay = (Math.random()*4).toFixed(2) + 's';
-      // кнопка «Вплести» — только если ещё не вплетали
-      if (!m.woven) {
+      // кнопка — только если не вплетали ни в этой сессии, ни раньше
+      const alreadyWoven = m.woven ||
+        (function(){ try { return localStorage.getItem('uc_woven_' + m.content.slice(0,60)) === '1'; } catch(e){ return false; } })();
+      if (!alreadyWoven) {
         const weaveBtn = document.createElement('button');
         weaveBtn.className = 'weave-btn';
         weaveBtn.textContent = '[ Вплести в Сеть ]';
@@ -897,12 +899,13 @@ if (!res.ok) throw new Error('HTTP ' + res.status);
 btn.textContent = '[ ✓ ВПЛЕТЕНО ]';
 btn.style.color = 'var(--accent)';
 btn.style.borderColor = 'rgba(0,255,136,0.3)';
-// помечаем в истории как вплетённое — при возврате кнопка не покажется
+// помечаем в сессии и в localStorage — кнопка не появится даже после перезагрузки
 const idx = parseInt(btn.dataset.msgIndex);
 if (!isNaN(idx) && messages[idx]) {
   messages[idx].woven = true;
   try { sessionStorage.setItem('uc_petlya_dialog', JSON.stringify(messages)); } catch(e){}
 }
+try { localStorage.setItem('uc_woven_' + btn.dataset.text.slice(0,60), '1'); } catch(e){}
 // Успех — кнопка остаётся disabled навсегда
 } catch(e) {
 console.warn('Supabase error', e);
