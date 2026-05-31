@@ -271,8 +271,8 @@ padding: 0.6rem 0.8rem;
 .memory.leaving.out-dissolve { animation: memout-dissolve 1.1s ease forwards !important; }
 @keyframes memout-up { to { opacity: 0; transform: translateY(-40px) scale(0.96); } }
 .memory.leaving.out-up { animation: memout-up 1s ease forwards !important; }
-@keyframes memout-shrink { to { opacity: 0; transform: scale(0.7); max-height: 0; margin: 0; padding: 0; } }
-.memory.leaving.out-shrink { animation: memout-shrink 1s ease forwards !important; overflow: hidden; }
+@keyframes memout-shrink { to { opacity: 0; transform: scale(0.7) translateY(-10px); } }
+.memory.leaving.out-shrink { animation: memout-shrink 1s ease forwards !important; }
 @keyframes memout-side { to { opacity: 0; transform: translateX(60px) rotate(3deg); } }
 .memory.leaving.out-side { animation: memout-side 1s ease forwards !important; }
 @keyframes memout-fade { to { opacity: 0; } }
@@ -555,6 +555,7 @@ weaveBtn.className = 'weave-btn';
 weaveBtn.textContent = '[ Вплести в Сеть ]';
 weaveBtn.dataset.text = fullText.slice(0, 300);
 weaveBtn.dataset.noise = userNoise.slice(0, 500);
+weaveBtn.dataset.msgIndex = messages.length; // индекс этого отклика в массиве (запишется туда после push)
 weaveBtn.onclick = function() { weaveIntoNet(this); };
 div.appendChild(weaveBtn);
 }
@@ -589,16 +590,27 @@ function restoreDialog() {
   for (const m of saved) {
     const { div, mbId } = addMessage(m.role === 'user' ? 'user' : 'ai', m.content);
     if (m.role === 'user') {
-      div.classList.add('memory', chosenUserFx);     // шум — диагональный проход (длительность из CSS)
+      div.classList.add('memory', chosenUserFx);
       div.style.animationDelay = (Math.random()*6).toFixed(2) + 's';
       lastUser = m.content;
     } else {
       var pool = aiFx.filter(function(v){ return v !== lastAiFx; });
       var fx = pool[Math.floor(Math.random()*pool.length)];
       lastAiFx = fx;
-      div.classList.add('memory', fx);               // отклик — своё дыхание
+      div.classList.add('memory', fx);
       div.style.animationDuration = (12 + Math.random()*8).toFixed(1) + 's';
       div.style.animationDelay = (Math.random()*4).toFixed(2) + 's';
+      // кнопка «Вплести» — только если ещё не вплетали
+      if (!m.woven) {
+        const weaveBtn = document.createElement('button');
+        weaveBtn.className = 'weave-btn';
+        weaveBtn.textContent = '[ Вплести в Сеть ]';
+        weaveBtn.dataset.text = m.content.slice(0, 300);
+        weaveBtn.dataset.noise = lastUser.slice(0, 500);
+        weaveBtn.dataset.msgIndex = messages.indexOf(m);
+        weaveBtn.onclick = function() { weaveIntoNet(this); };
+        div.appendChild(weaveBtn);
+      }
     }
   }
   scrollBottom();
@@ -650,6 +662,7 @@ function dismissMemories() {
   var out = pool[Math.floor(Math.random()*pool.length)];
   try { sessionStorage.setItem('uc_petlya_memout', out); } catch(e){}
   mems.forEach(function(el, i){
+    el.style.position = 'absolute';    // выбить из потока — новый шум не смещается
     el.style.animationDelay = (i * 0.08).toFixed(2) + 's';
     el.classList.add('leaving', out);
     setTimeout(function(){ if (el.parentNode) el.remove(); }, 1500 + i*80);
@@ -884,7 +897,13 @@ if (!res.ok) throw new Error('HTTP ' + res.status);
 btn.textContent = '[ ✓ ВПЛЕТЕНО ]';
 btn.style.color = 'var(--accent)';
 btn.style.borderColor = 'rgba(0,255,136,0.3)';
-// Успех — кнопка остаётся disabled навсегда, флаг не сбрасываем
+// помечаем в истории как вплетённое — при возврате кнопка не покажется
+const idx = parseInt(btn.dataset.msgIndex);
+if (!isNaN(idx) && messages[idx]) {
+  messages[idx].woven = true;
+  try { sessionStorage.setItem('uc_petlya_dialog', JSON.stringify(messages)); } catch(e){}
+}
+// Успех — кнопка остаётся disabled навсегда
 } catch(e) {
 console.warn('Supabase error', e);
 btn.textContent = '[ ✗ ОЖИДАНИЕ... ]';
